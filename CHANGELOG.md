@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Containers from other mods that players build with the hammer can be linked, for example the OdinsKingdom Large Wood Crate. Toggle with `ModdedContainers` (on by default).
+- Ship and cart storage, graves, the Obliterator and world-generated chests stay excluded.
+- New `ExcludedContainers` setting: prefab names that are never linked. Each modded container type is logged once when it is first linked.
+
 ## 0.2.4
 
 - First public release, inspired by the Refined Storage mod for Minecraft.

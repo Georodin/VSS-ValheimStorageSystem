@@ -84,7 +84,7 @@ internal static class VssContainerAwakePatch
 {
     private static void Postfix(Container __instance)
     {
-        if (!VssStorageScanner.Supported(__instance)) return;
+        if (!VssStorageScanner.Supported(__instance, false)) return;
         VssStorageScanner.Containers.Add(__instance);
         if (__instance.GetComponent<VssChestBridge>() == null) __instance.gameObject.AddComponent<VssChestBridge>();
     }

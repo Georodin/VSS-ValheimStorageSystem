@@ -18,7 +18,7 @@ Build a book-and-quill pedestal, press **E**, and search all your nearby chests 
 - **Native inventory behavior:** equipped-item highlights, hotbar numbers, right-click equip/unequip/use, and native notifications above the storage window.
 - **Co-op support:** synchronized chest access, permissions and host-controlled radius. Successful live multiplayer testing reported by the author.
 
-Wooden, reinforced and black metal chests, barrels, and accessible personal chests are supported. Chest privacy and ward permissions apply. Carts, ships, graves and temporary loot containers are excluded.
+Wooden, reinforced and black metal chests, barrels, and accessible personal chests are supported. Containers from other mods that you build with the hammer, such as OdinsKingdom crates, are supported too. Chest privacy and ward permissions apply. Carts, ships, graves, the Obliterator, world loot chests and temporary loot containers are excluded.
 
 ## Getting started
 
@@ -69,12 +69,20 @@ RegisterStand = true
 
 [Storage]
 RadiusMeters = 20
+ModdedContainers = true
+ExcludedContainers =
 
 [UI]
 RefreshSeconds = 0.75
 ```
 
 Set the radius on the host/server; clients use the host's value. Only loaded chests are scanned, so raising the radius does not force distant world sectors to load.
+
+`ModdedContainers` links containers from other mods that players build with the hammer. Storage that belongs to a ship or cart is never linked, and neither are chests the world generated.
+
+The first time VSS links a modded container type, it writes `Linking modded container <name>` to the BepInEx log. To leave a container type out, add its name to `ExcludedContainers`. The list takes comma-separated prefab names and also works for vanilla chests, for example `piece_chest_private`.
+
+Use the same values for both settings on every player. They are not synchronized from the host, and the player who currently owns a chest checks them before allowing a transfer.
 
 ## Multiplayer
 
