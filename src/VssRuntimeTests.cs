@@ -158,6 +158,7 @@ internal static class VssRuntimeTests
         var named = (Dictionary<int, GameObject>)AccessTools.Field(typeof(ZNetScene), "m_namedPrefabs").GetValue(scene);
         // Mirror ZNetScene.Awake's native catalog registration without starting a world.
         foreach (var vanilla in scene.m_prefabs) named[vanilla.name.GetStableHashCode()] = vanilla;
+        VssVanillaReferences.Export(scene);
         var stool = scene.GetPrefab(VssPieceRegistry.BasePrefabName);
         Check(stool != null && stool.GetComponent<Chair>() != null, "base stool exists in installed network prefab catalog");
         Check(hammerDrop.m_itemData.m_shared.m_buildPieces.m_pieces.Contains(stool), "base stool exists in installed hammer table");
@@ -208,13 +209,32 @@ internal static class VssRuntimeTests
             VssPieceRegistry.Register(scene);
             Check(hammerDrop.m_itemData.m_shared.m_buildPieces.m_pieces.Count(p => p == prefab) == 1, "registration is idempotent");
             var before = Inv(2, 2); var item = drop.m_itemData.Clone(); item.m_stack = 23; item.m_dropPrefab = wood;
-            item.m_quality = 2; item.m_variant = 1; item.m_durability = 83.5f; item.m_worldLevel = 1;
+            item.m_quality = 1; item.m_variant = 0; item.m_durability = 83.57f; item.m_worldLevel = 1;
             item.m_crafterID = 42; item.m_crafterName = "VSS crafter"; item.m_customData["vss test data"] = "kept";
             Put(before, item, 1, 1);
             var package = new ZPackage(); before.Save(package);
             var after = Inv(2, 2); after.Load(new ZPackage(package.GetArray()));
             Check(after.NrOfItems() == 1 && after.GetItemAt(1, 1) != null, "native inventory serialization retains slot");
-            Check(new VssItemKey(item).Matches(after.GetItemAt(1, 1)) && after.GetItemAt(1, 1).m_stack == 23, "native serialization retains quantity and metadata");
+            // Current Valheim format 109 stores durability as integer hundredths, rather than a float.
+            var expected = item.Clone(); expected.m_durability = (int)(item.m_durability * 100f) * 0.01f;
+            Check(Math.Abs(after.GetItemAt(1, 1).m_durability - item.m_durability) < 0.011f, "native durability precision is within one hundredth");
+            if (!new VssItemKey(expected).Matches(after.GetItemAt(1, 1)))
+                VssPlugin.Log.LogWarning("Serialization fixture expected " + new VssItemKey(expected).Id + " actual " + new VssItemKey(after.GetItemAt(1, 1)).Id);
+            Check(new VssItemKey(expected).Matches(after.GetItemAt(1, 1)) && after.GetItemAt(1, 1).m_stack == 23, "native serialization retains quantity and metadata at native precision");
+            var shieldPath = SoftReferenceableAssets.Runtime.GetAllAssetPathsInBundleMappedToAssetID().Keys.First(p => p.EndsWith("/ShieldWood.prefab", StringComparison.Ordinal));
+            var shield = GamePrefab(shieldPath); byHash[shield.name.GetStableHashCode()] = shield;
+            var equipment = shield.GetComponent<ItemDrop>().m_itemData.Clone(); equipment.m_dropPrefab = shield;
+            Check(equipment.m_shared.m_maxQuality >= 2 && equipment.m_shared.m_variants > 1, "serialization fixture uses an actual valid equipment quality and variant");
+            equipment.m_quality = 2; equipment.m_variant = 1; equipment.m_durability = 83.57f;
+            equipment.m_crafterID = 42; equipment.m_crafterName = "VSS crafter"; equipment.m_customData["vss equipment"] = "kept";
+            before = Inv(2, 2); Put(before, equipment, 1, 1); package = new ZPackage(); before.Save(package);
+            after = Inv(2, 2); after.Load(new ZPackage(package.GetArray()));
+            expected = equipment.Clone(); expected.m_durability = (int)(equipment.m_durability * 100f) * 0.01f;
+            Check(new VssItemKey(expected).Matches(after.GetItemAt(1, 1)), "native serialization preserves legitimate quality, variant, crafter and mod data");
+            _stage = "storage crafting, building payment and consumption";
+            VssResourceTests.Run(Check, testPlayer);
+            _stage = "native owner-side machine acceptance and refill payment";
+            VssRefillTests.Run(Check, scene);
         }
         finally
         {
@@ -236,6 +256,19 @@ internal static class VssRuntimeTests
         var inventory = (RectTransform)AccessTools.Field(typeof(VssUi), "_inventory").GetValue(ui);
         var panel = (RectTransform)AccessTools.Field(typeof(VssUi), "_panel").GetValue(ui);
         Check(storage.GetComponent<GridLayoutGroup>().constraintCount == 12 && inventory.GetComponent<GridLayoutGroup>().constraintCount == 8, "upper storage and lower player grids");
+        Check(VssAssets.ControllerIcon != null && VssAssets.ChestIcon != null && VssSprites.StandIcon == VssAssets.ControllerIcon &&
+            VssAssets.ControllerIcon.texture.width == 256 && VssAssets.ChestIcon.texture.width == 256,
+            "production AI icons load at native-friendly 256 pixel resolution");
+        Check(VssAssets.ControllerIcon.texture.GetPixel(0, 0).a < 0.01f && VssAssets.ChestIcon.texture.GetPixel(0, 0).a < 0.01f,
+            "AI icons have transparent backgrounds");
+        var auto = (TMP_Text)AccessTools.Field(typeof(VssUi), "_autoText").GetValue(ui);
+        var amount = (TMP_Text)AccessTools.Field(typeof(VssUi), "_amountText").GetValue(ui);
+        Check(auto.text == "Auto refill master: Off" && amount.text == "Amount: Stack", "refill master and transfer selectors have clear initial states");
+        foreach (var expectedLabel in new[] { "Half", "One", "Stack" })
+        {
+            amount.GetComponentInParent<Button>(true).onClick.Invoke();
+            Check(amount.text == "Amount: " + expectedLabel, "native UI amount button cycles to " + expectedLabel);
+        }
         Check(storage.parent.GetComponent<ScrollRect>().vertical && inventory.parent.GetComponent<ScrollRect>().vertical, "both grids scroll");
         foreach (var size in new[] { new Vector2(1920, 1080), new Vector2(1440, 1080), new Vector2(1024, 768), new Vector2(800, 900) })
         {
@@ -306,6 +339,7 @@ internal static class VssRuntimeTests
             Check(label.textInfo.characterInfo.Take(label.textInfo.characterCount).Any(c => c.isVisible),
                 "non-empty UI label has visible glyphs: " + label.text);
         }
+        Check(!auto.isTextTruncated && !amount.isTextTruncated, "refill and amount selector labels fit without truncation");
         var last = (RectTransform)slots[31].transform;
         Check(last.anchoredPosition.x + last.rect.width * (1 - last.pivot.x) <= inventory.rect.width + 0.1f &&
             -last.anchoredPosition.y + last.rect.height * last.pivot.y <= ((RectTransform)inventory.parent).rect.height + 0.1f,
@@ -439,7 +473,7 @@ internal static class VssRuntimeTests
         AccessTools.Method(typeof(VssUi), "DrawInventory").Invoke(ui, null);
         ((TMP_Text)AccessTools.Field(typeof(VssUi), "_capacity").GetValue(ui)).text = "115/120 (96%) used  •  5 free  •  10 chests  •  20m";
         ((TMP_Text)AccessTools.Field(typeof(VssUi), "_weight").GetValue(ui)).text = "Weight 110 / 300";
-        VssUi.Status("Drag items between storage and inventory. Shift-click: stack • Ctrl-click: one");
+        VssUi.Status("Click/drag: selected amount • Ctrl: one • Shift-drag: half • Right-click stored food: consume");
         panel.gameObject.SetActive(true); canvasObject.SetActive(true);
         yield return null; yield return null;
         try

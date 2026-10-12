@@ -19,18 +19,21 @@ public sealed class VssUi : MonoBehaviour
     private GameObject _canvas;
     private RectTransform _panel, _storage, _inventory, _drag, _tooltip, _preferencePanel;
     private TMP_Text _capacity, _status, _weight, _sortText, _orderText, _filterText, _tooltipText;
+    private TMP_Text _autoText, _amountText;
     private TMP_InputField _search;
     private Image _dragIcon;
     private Image _equippedTemplate;
     private TMP_Text _dragCount;
     private Button _chestButton;
     private Image _chestIcon;
+    private Image _chestBadge;
     private Container _openChest;
     private Player _player;
     private VssAccessStand _stand;
     private VssSnapshot _snapshot;
     private float _nextRefresh, _nextChestCheck;
     private int _sort;
+    private int _amountMode;
     private bool _descending;
     private VssCategory _filter;
     private readonly List<VssSlot> _storageSlots = new();
@@ -39,6 +42,7 @@ public sealed class VssUi : MonoBehaviour
     private VssItemRow _dragRow;
     private int _dragAmount;
     private float _openedAt;
+    private float _suppressUseUntil;
     private static float _suppressMenuUntil;
     public static bool IsOpen => _instance != null && _instance._player != null;
     internal static bool SuppressMenu => IsOpen || Time.unscaledTime < _suppressMenuUntil;
@@ -64,7 +68,7 @@ public sealed class VssUi : MonoBehaviour
         _instance._search.SetTextWithoutNotify("");
         _instance._filter = VssCategory.Any;
         _instance.Refresh(true);
-        Status(VssSettings.Ready ? "Drag items between storage and inventory. Shift-click: stack • Ctrl-click: one" : "Waiting for VSS settings from the host…");
+        Status(VssSettings.Ready ? "Click/drag: selected amount • Ctrl: one • Shift-drag: half • Right-click stored food: consume" : "Waiting for VSS settings from the host…");
     }
     public static void Status(string message)
     {
@@ -91,6 +95,7 @@ public sealed class VssUi : MonoBehaviour
             UpdateChestButton();
         }
         if (!IsOpen) return;
+        if (_autoText != null) _autoText.text = "Auto refill master: " + (_stand != null && _stand.AutoRefill ? "On" : "Off");
         FitPanel();
         if (_stand == null || _player == null || _player.IsDead() || _player.IsTeleporting() ||
             (_player.transform.position - _stand.transform.position).sqrMagnitude > 25f ||
@@ -98,7 +103,8 @@ public sealed class VssUi : MonoBehaviour
         if (Time.unscaledTime - _openedAt > 0.2f && (Input.GetKeyDown(KeyCode.Escape) ||
             (!_search.isFocused && (Input.GetKeyDown(KeyCode.Tab) || ZInput.GetButtonDown("Inventory")))))
         { Close(); return; }
-        if (Input.GetMouseButtonDown(1)) EndDrag();
+        if (Input.GetMouseButtonDown(1) && (_dragItem != null || _dragRow != null))
+        { _suppressUseUntil = Time.unscaledTime + 0.25f; EndDrag(); }
         if (Time.unscaledTime >= _nextRefresh && _dragItem == null && _dragRow == null && !VssTransfer.Busy) Refresh(false);
         if (_drag != null && _drag.gameObject.activeSelf)
         {
@@ -145,7 +151,14 @@ public sealed class VssUi : MonoBehaviour
         Art("Inventory recess", VssAssets.Inset, 191, 584, 658, 306);
         Art("Footer recess", VssAssets.Inset, 80, 894, 880, 26);
         Frame();
-        Label(_panel, "Storage Inventory", 98, 36, 784, 34, 30, Gold);
+        var controllerIcon = Rect("Controller icon", _panel, new Vector2(34, 34)); Top(controllerIcon, 98, 37, 34, 34);
+        var controllerImage = Background(controllerIcon, Color.white); controllerImage.sprite = VssSprites.StandIcon;
+        controllerImage.preserveAspect = true; controllerImage.raycastTarget = false;
+        Label(_panel, "Storage Inventory", 140, 36, 486, 34, 30, Gold);
+        _autoText = Button(_panel, "Auto refill master: Off", 648, 42, 236, 36, () =>
+        {
+            if (_stand != null && _player != null) _stand.ToggleAutoRefill(_player);
+        }).GetComponentInChildren<TMP_Text>(); _autoText.fontSize = 18;
         Button(_panel, "×", 902, 38, 52, 52, Close);
         _capacity = Label(_panel, "", 98, 70, 784, 22, 18, Paper);
         _search = Search(_panel, 44, 110, 425, 40);
@@ -156,7 +169,11 @@ public sealed class VssUi : MonoBehaviour
         Button(_panel, "Refresh", 916, 110, 80, 40, () => Refresh(true));
         _storage = ScrollGrid(_panel, "Stored items", 44, 178, 952, 354, 12, true);
         var drop = _storage.parent.gameObject.AddComponent<VssDropZone>(); drop.Storage = true;
-        Label(_panel, "YOUR INVENTORY", 203, 550, 350, 30, 22, Gold);
+        Label(_panel, "YOUR INVENTORY", 203, 550, 176, 30, 22, Gold);
+        _amountText = Button(_panel, "Amount: Stack", 391, 550, 154, 30, () =>
+        {
+            _amountMode = (_amountMode + 1) % 3; _amountText.text = "Amount: " + AmountLabel(_amountMode);
+        }).GetComponentInChildren<TMP_Text>(); _amountText.fontSize = 17;
         _weight = Label(_panel, "", 557, 553, 280, 26, 17, Paper); _weight.alignment = TextAlignmentOptions.Right;
         _inventory = ScrollGrid(_panel, "Player inventory", 203, 596, 634, 282, 8, false);
         var inventoryDrop = _inventory.parent.gameObject.AddComponent<VssDropZone>(); inventoryDrop.Storage = false;
@@ -272,7 +289,7 @@ public sealed class VssUi : MonoBehaviour
         if (slot.Item != null && slot.Item.m_equipped) { Status("Unequip items before moving them."); return; }
         _instance._dragItem = slot.Item; _instance._dragRow = slot.Row;
         var count = slot.Storage ? Math.Min(slot.Row.Total, slot.Row.MaxStack) : slot.Item.m_stack;
-        _instance._dragAmount = Ctrl ? 1 : Shift ? Math.Max(1, (count + 1) / 2) : count;
+        _instance._dragAmount = Ctrl ? 1 : Shift ? SelectedAmount(count, 1) : SelectedAmount(count, _instance._amountMode);
         _instance._dragIcon.sprite = slot.Storage ? slot.Row.Icon : slot.Item.GetIcon();
         _instance._dragCount.text = _instance._dragAmount.ToString();
         _instance._drag.gameObject.SetActive(true); _instance._drag.SetAsLastSibling(); _instance.HideTooltip();
@@ -309,15 +326,23 @@ public sealed class VssUi : MonoBehaviour
     internal static void Click(VssSlot slot, PointerEventData data)
     {
         if (!IsOpen || VssTransfer.Busy) return;
+        if (data.button == PointerEventData.InputButton.Right && Time.unscaledTime < _instance._suppressUseUntil) return;
+        if (slot.Storage && slot.Row != null && data.button == PointerEventData.InputButton.Right)
+        {
+            VssTransfer.Consume(_instance._player, _instance._stand, slot.Row); return;
+        }
         if (!slot.Storage && slot.Item != null && data.button == PointerEventData.InputButton.Right)
         {
-            _instance._player.UseItem(_instance._player.GetInventory(), slot.Item, false);
+            _instance._player.UseItem(_instance._player.GetInventory(), slot.Item, true);
             _instance.DrawInventory(); return;
         }
-        if (data.button != PointerEventData.InputButton.Left || (!Shift && !Ctrl)) return;
-        if (slot.Storage && slot.Row != null) VssTransfer.Withdraw(_instance._player, _instance._stand, slot.Row, Ctrl ? 1 : slot.Row.MaxStack);
-        else if (!slot.Storage && slot.Item != null) VssTransfer.Deposit(_instance._player, _instance._stand, slot.Item, Ctrl ? 1 : slot.Item.m_stack);
+        if (data.button != PointerEventData.InputButton.Left) return;
+        var mode = Ctrl ? 2 : Shift ? 0 : _instance._amountMode;
+        if (slot.Storage && slot.Row != null) VssTransfer.Withdraw(_instance._player, _instance._stand, slot.Row, SelectedAmount(Math.Min(slot.Row.Total, slot.Row.MaxStack), mode));
+        else if (!slot.Storage && slot.Item != null) VssTransfer.Deposit(_instance._player, _instance._stand, slot.Item, SelectedAmount(slot.Item.m_stack, mode));
     }
+    internal static string AmountLabel(int mode) => mode == 1 ? "Half" : mode == 2 ? "One" : "Stack";
+    internal static int SelectedAmount(int count, int mode) => count <= 0 ? 0 : mode == 2 ? 1 : mode == 1 ? Math.Max(1, (count + 1) / 2) : count;
     private static bool Shift => Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
     private static bool Ctrl => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
     internal static void EndDragStatic() { if (_instance != null) _instance.EndDrag(); }
@@ -331,6 +356,7 @@ public sealed class VssUi : MonoBehaviour
         if (_instance == null || _instance._tooltip == null || _instance._dragItem != null || _instance._dragRow != null) return;
         var text = slot.Row?.Tooltip ?? (slot.Item != null ? $"{new VssItemKey(slot.Item).DisplayName}\n{slot.Item.m_stack} item(s) • Quality {slot.Item.m_quality}" +
             (slot.Item.m_equipped ? "\nEquipped" : "") : "");
+        if (slot.Row != null && slot.Row.Sample.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Consumable) text += "\nRight-click: consume one";
         _instance._tooltipText.text = text; _instance._tooltip.gameObject.SetActive(!string.IsNullOrEmpty(text));
         _instance._tooltip.SetAsLastSibling();
     }
@@ -355,6 +381,9 @@ public sealed class VssUi : MonoBehaviour
             rect.anchorMin = rect.anchorMax = new Vector2(1, 1); rect.anchoredPosition = new Vector2(8, -8);
             var imageRect = Rect("Preference icon", rect, new Vector2(32, 32));
             _chestIcon = Background(imageRect, Color.white); _chestIcon.preserveAspect = true; _chestIcon.raycastTarget = false;
+            _chestIcon.sprite = VssAssets.ChestIcon ?? VssSprites.StandIcon;
+            var badgeRect = Rect("Preferred resource badge", rect, new Vector2(17, 17)); Top(badgeRect, 25, 25, 17, 17);
+            _chestBadge = Background(badgeRect, Color.white); _chestBadge.preserveAspect = true; _chestBadge.raycastTarget = false;
             // The selection menu grows inward, staying on screen even when the chest sits at the right edge.
             _preferencePanel = Rect("Preferred resource", gui.m_container, new Vector2(240, 438));
             _preferencePanel.anchorMin = _preferencePanel.anchorMax = new Vector2(1, 1); _preferencePanel.pivot = new Vector2(1, 1);
@@ -365,14 +394,20 @@ public sealed class VssUi : MonoBehaviour
                 var category = (VssCategory)i;
                 Button(_preferencePanel, category == VssCategory.Any ? "Any resource" : VssPreferences.Label(category), 10, 38 + i * 32, 220, 29, () =>
                 {
-                    if (_openChest != null && VssPreferences.Set(_openChest, category)) _chestIcon.sprite = VssPreferences.Icon(category);
+                    if (_openChest != null && VssPreferences.Set(_openChest, category)) UpdateChestBadge();
                     _preferencePanel.gameObject.SetActive(false);
                 });
             }
             _preferencePanel.gameObject.SetActive(false);
         }
         if (_openChest != chest) _preferencePanel.gameObject.SetActive(false);
-        _openChest = chest; _chestButton.gameObject.SetActive(true); _chestIcon.sprite = VssPreferences.Icon(VssPreferences.Get(chest));
+        _openChest = chest; _chestButton.gameObject.SetActive(true); UpdateChestBadge();
+    }
+    private void UpdateChestBadge()
+    {
+        if (_chestBadge == null || _openChest == null) return;
+        var category = VssPreferences.Get(_openChest); _chestBadge.enabled = category != VssCategory.Any;
+        _chestBadge.sprite = VssPreferences.Icon(category);
     }
     private void TogglePreferences()
     {

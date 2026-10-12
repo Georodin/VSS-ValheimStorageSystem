@@ -81,6 +81,11 @@ New-Item -ItemType Directory -Force -Path $uiDir | Out-Null
 foreach ($asset in @('outer-frame.png', 'backing.png', 'panel-skin.png')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "assets\ui\$asset") -Destination $uiDir -Force
 }
+$iconsDir = Join-Path $pluginDir 'icons'
+New-Item -ItemType Directory -Force -Path $iconsDir | Out-Null
+foreach ($asset in @('controller.png', 'chest-preference.png')) {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "assets\icons\$asset") -Destination $iconsDir -Force
+}
 $legacyPanel = Join-Path $pluginDir 'vss-panel.png'
 if (Test-Path -LiteralPath $legacyPanel) { Remove-Item -LiteralPath $legacyPanel -Force }
 

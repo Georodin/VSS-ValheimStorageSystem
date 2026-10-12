@@ -1,0 +1,21 @@
+Generated with the built-in image_gen tool on 2026-10-12. Reference: a local diagnostic export of actual vanilla Valheim sprites (chest, stool, workbench, forge, wood, hammer, resin, coal); vanilla artwork is not shipped.
+
+CONTROLLER
+Use case: stylized-concept.
+Asset: ONE transparent in-game inventory/build-menu sprite for the VSS Storage Inventory controller in Valheim.
+Input image is ONLY a style reference: it shows actual vanilla Valheim chest, stool, workbench, forge, wood, hammer, resin, coal icons. Do not copy its grid or background; create a single new isolated object.
+Subject: a chunky simple low-poly oak pedestal/stool with an open cream parchment book resting on top, a small black ink pot and a single white quill leaning up from it. Whole pedestal visible including base/legs. Book and quill must be immediately recognizable at 64x64 game UI size.
+Style: closely match vanilla Valheim item sprites in reference — restrained low-poly geometry, painterly muted textures, soft upper-left light, three-quarter isometric view looking slightly down, brown oak and ivory parchment, softly shaded edges. Modest detail, broad clear silhouette. No glowing magical effects.
+Composition: square canvas, one centered object with generous 12% transparent margins on all sides, fills 76% of canvas, no cropping.
+Output: PNG with real transparent alpha around object and between legs. No text, no labels, no border, no UI button, no dark background, no floor plane, no cast shadow outside silhouette, no logo, no gold ornament. This is a production game icon, not promotional art.
+
+CHEST PREFERENCE
+Use case: stylized-concept.
+Asset: ONE transparent small chest-preference button sprite for a Valheim storage mod.
+The attached image is only a visual style reference containing actual vanilla sprites. Do not reproduce the sheet; create a single new icon.
+Subject: a simple rustic rectangular oak chest with a slightly raised hinged lid, small aged iron bands and a round iron latch. At its front lower-right corner place a small cream parchment tag bearing a single plain dark downward triangle, large enough to communicate a resource preference dropdown at 32x32. The tag is part of the isolated icon; no frame or button background.
+Style: match actual vanilla Valheim icons closely: low-poly three-quarter isometric object, subdued warm oak, matte charcoal iron, softly shaded painterly textures, soft upper-left light, broad clear forms and minimal detail. No glowing magic, no bright golden ornamental styling.
+Composition: square, chest fills about 76% of image, everything inside a 12% transparent margin. Tag occupies about a quarter of the chest face but leaves the chest recognizable.
+Output: PNG with real transparent alpha around all artwork. No floor, no scene, no cast shadow outside silhouette, no labels, no readable text, no letters, no UI frame, no logo. One production game sprite designed to remain readable at 32x32 pixels.
+
+The original transparent master PNGs are retained as *-master.png. Production PNGs are resized to 256x256 for the build menu and chest buttons, preserving transparency.

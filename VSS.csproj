@@ -53,5 +53,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="assets\ui\*.png" CopyToOutputDirectory="PreserveNewest" TargetPath="ui\%(Filename)%(Extension)" />
+    <None Update="assets\icons\controller.png;assets\icons\chest-preference.png" CopyToOutputDirectory="PreserveNewest" TargetPath="icons\%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

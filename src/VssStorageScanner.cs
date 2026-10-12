@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace VSS;
@@ -18,6 +19,18 @@ internal static class VssStorageScanner
     public static bool CanAccess(Container container, Player player) => player != null && Supported(container) &&
         VssGame.CheckAccess(container, player.GetPlayerID()) &&
         (!container.m_checkGuardStone || PrivateArea.CheckAccess(container.transform.position, 0f, false, false));
+    internal static bool CanAccess(Container container, long actor) => Supported(container) && VssGame.CheckAccess(container, actor) &&
+        (!container.m_checkGuardStone || VssAccessStand.HasWardAccess(actor, container.transform.position));
+    internal static List<Container> Sources(VssContext context)
+    {
+        Containers.RemoveWhere(c => c == null);
+        var sources = Containers.Where(c => c.gameObject.activeInHierarchy &&
+            (c.transform.position - context.Stand.transform.position).sqrMagnitude <= VssSettings.Radius * VssSettings.Radius &&
+            CanAccess(c, context.Actor) && !c.IsInUse() && !VssChestBridge.IsLeased(VssGame.View(c).GetZDO()))
+            .OrderBy(c => (c.transform.position - context.Stand.transform.position).sqrMagnitude).ToList();
+        foreach (var chest in sources) VssGame.Load(chest);
+        return sources;
+    }
     public static VssSnapshot Scan(Vector3 origin, Player player)
     {
         var snapshot = new VssSnapshot();

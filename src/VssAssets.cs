@@ -14,6 +14,7 @@ internal static class VssAssets
     internal static bool HasStandModel => _standModel != null;
     internal static Sprite Panel;
     internal static Sprite Wood, Inset;
+    internal static Sprite ControllerIcon, ChestIcon;
 
     public static GameObject GetStandModel()
     {
@@ -29,6 +30,10 @@ internal static class VssAssets
         }
 
         var uiDir = Path.Combine(pluginDir, "ui");
+        var controller = LoadTexture(Path.Combine(pluginDir, "icons", "controller.png"), log);
+        if (controller != null) ControllerIcon = WholeSprite(controller, "Controller icon");
+        var chestIcon = LoadTexture(Path.Combine(pluginDir, "icons", "chest-preference.png"), log);
+        if (chestIcon != null) ChestIcon = WholeSprite(chestIcon, "Chest preference icon");
         var frameTexture = LoadTexture(Path.Combine(uiDir, "outer-frame.png"), log);
         if (frameTexture != null)
         {

@@ -41,6 +41,10 @@ Copy-Item (Join-Path $PSScriptRoot "bin\VSS.dll") (Join-Path $pluginDir "VSS.dll
 foreach ($asset in @('outer-frame.png', 'backing.png', 'panel-skin.png')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "assets\ui\$asset") -Destination (Join-Path $pluginDir 'ui') -Force
 }
+New-Item -ItemType Directory -Force -Path (Join-Path $pluginDir 'icons') | Out-Null
+foreach ($asset in @('controller.png', 'chest-preference.png')) {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "assets\icons\$asset") -Destination (Join-Path $pluginDir 'icons') -Force
+}
 
 $bundle = Join-Path $PSScriptRoot "assets\vss_assets"
 if (Test-Path $bundle) {

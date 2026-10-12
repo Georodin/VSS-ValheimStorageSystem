@@ -9,7 +9,7 @@ public sealed class VssPlugin : BaseUnityPlugin
 {
     public const string ModGuid = "georo.vss";
     public const string ModName = "VSS";
-    public const string ModVersion = "0.2.4";
+    public const string ModVersion = "0.3.1";
 
     internal static ManualLogSource Log;
     internal static VssConfig ModConfig;
@@ -23,6 +23,7 @@ public sealed class VssPlugin : BaseUnityPlugin
         Instance = this;
         ModConfig = new VssConfig(Config);
         ModConfig.Radius.SettingChanged += (_, __) => VssSettings.Broadcast();
+        ModConfig.AutoRefillExcludedItems.SettingChanged += (_, __) => VssSettings.Broadcast();
 
         _harmony = new Harmony(ModGuid);
         _harmony.PatchAll();
@@ -33,7 +34,7 @@ public sealed class VssPlugin : BaseUnityPlugin
         VssRuntimeTests.Run();
     }
 
-    private void Update() => VssSettings.Tick();
+    private void Update() { VssSettings.Tick(); VssRefillBridge.Tick(); }
 
     private void OnDestroy()
     {

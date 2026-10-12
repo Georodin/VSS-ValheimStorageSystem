@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.1
+
+- Keep the storage controller master Off by default and start every refillable object's automatic supplies Off too.
+- Add a configurable G key control while facing a linked machine, fire or lamp, with a native VSS auto-refill On/Off hover prompt.
+- Save and share individual object choices in co-op; the master switch pauses the whole network without clearing those choices.
+- Enforce both switches during chest authorization and again before automatic supplies commit.
+- Use the nearest eligible controller consistently when network ranges overlap.
+- Always protect core wood, fine wood and other special woods from VSS station supplies, even with an empty exclusion list. Crafting/building retain access to their required woods.
+- Add native owner-RPC tests for toggles, sender identity, actor distance/death, master/object gating and the real kiln's normal-wood conversion.
+
+## 0.3.0 — local test build
+
+- Craft and upgrade at linked workbenches, forges and other crafting stations using chest resources, with player inventory taking priority.
+- Build with the hammer using the storage network while inside a pedestal's radius.
+- Refill native fuel users and processing machines directly from storage, including fires, torches, lamps, kilns, smelters, blast furnaces, windmills and spinning wheels.
+- Add a saved, shared Auto refill toggle per pedestal. Protect special woods by default with host-synchronized exclusions.
+- Support manual cooking input and automatic oven fuel, while keeping automatic cooking inputs disabled to avoid burning food.
+- Add a visible Stack/Half/One transfer selector and direct right-click consumption of stored food and mead.
+- Add AI-generated controller and chest-preference icons styled using actual installed vanilla sprite references.
+- Acquire required chest leases before crafting/building, preserve native recipe gates, and debit refill items only after owner-side acceptance.
+- Expand isolated native tests for exact resource payments, changed items, alternate-ingredient batch quality, direct consumption and partial-stack controls.
+
 ## 0.2.4
 
 - First public release, inspired by the Refined Storage mod for Minecraft.

@@ -6,7 +6,8 @@ using UnityEngine;
 namespace VSS;
 internal static class VssTransfer
 {
-    public static bool Busy { get; private set; }
+    private static bool _busy;
+    public static bool Busy { get => _busy || VssTransactions.Busy; private set => _busy = value; }
     private static bool _cancel;
     private static int _lastMoved;
     private static string _error;
@@ -20,6 +21,39 @@ internal static class VssTransfer
     {
         if (Busy || row == null) return;
         Start(Run(player, stand, null, row.Key, Math.Min(amount, row.MaxStack), false, x, y));
+    }
+    internal static void Consume(Player player, VssAccessStand stand, VssItemRow row)
+    {
+        if (Busy || row == null) return;
+        if (row.Sample.m_shared.m_itemType != ItemDrop.ItemData.ItemType.Consumable) { VssUi.Status("Right-click stored food or mead to consume one."); return; }
+        Start(RunConsume(player, stand, row));
+    }
+    private static IEnumerator RunConsume(Player player, VssAccessStand stand, VssItemRow row)
+    {
+        var used = false;
+        try
+        {
+            if (!Valid(player, stand)) yield break;
+            foreach (var chest in VssStorageScanner.Scan(stand.transform.position, player).Containers)
+            {
+                if (!Valid(player, stand) || used) break;
+                if (chest.Container == null || !chest.Inventory.GetAllItems().Any(row.Key.Matches)) continue;
+                var attempted = false;
+                yield return WithLease(chest.Container, player, stand, () =>
+                {
+                    var item = chest.Inventory.GetAllItems().FirstOrDefault(row.Key.Matches);
+                    if (item == null) return 0;
+                    attempted = true;
+                    var count = item.m_stack;
+                    player.UseItem(chest.Inventory, item, true);
+                    used = item.m_stack < count || !chest.Inventory.ContainsItem(item);
+                    return used ? 1 : 0;
+                });
+                // A native cooldown/full-food rejection should not try another chest.
+                if (attempted) break;
+            }
+        }
+        finally { Busy = false; VssUi.Status(used ? "Consumed " + row.Key.DisplayName + "." : "Item could not be consumed, or storage is busy."); VssUi.RefreshNow(); }
     }
     private static void Start(IEnumerator routine)
     {

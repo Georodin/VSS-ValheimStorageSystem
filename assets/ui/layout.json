@@ -21,9 +21,9 @@
     "height": 70
   },
   "title": {
-    "x": 98,
+    "x": 140,
     "y": 36,
-    "width": 784,
+    "width": 486,
     "height": 34
   },
   "capacity": {
@@ -91,7 +91,7 @@
   "inventoryHeading": {
     "x": 203,
     "y": 550,
-    "width": 350,
+    "width": 176,
     "height": 30
   },
   "weight": {
@@ -131,5 +131,23 @@
     "height": 66,
     "gapX": 6,
     "gapY": 6
+  },
+  "controllerIcon": {
+    "x": 98,
+    "y": 37,
+    "width": 34,
+    "height": 34
+  },
+  "autoRefillButton": {
+    "x": 648,
+    "y": 42,
+    "width": 236,
+    "height": 36
+  },
+  "amountButton": {
+    "x": 391,
+    "y": 550,
+    "width": 154,
+    "height": 30
   }
 }

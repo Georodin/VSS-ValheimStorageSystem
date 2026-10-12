@@ -31,3 +31,11 @@ The exporter ran in Unity 6000.3.9f1 with the version string stripped and type t
 The model is visual-only, with no ZNetView, Piece, Container or custom MonoBehaviour. VSS supplies the networked building base and health/effects by cloning the native stool (`piece_chair`), replacing its geometry and colliders, then adding the complete model and a fitted box collider. VSS adds the E interaction and exact 5-wood recipe. If the optional bundle is absent, the procedural cube-on-stool fallback remains available.
 
 Copy `vss_assets` beside `VSS.dll` on clients. The DLL build and package scripts include it automatically. `ExportStorageModel.cs.txt` contains the C# method body used with Unity MCP `execute_code` for this export; the output path targets this checkout. For a different checkout, adjust that path before rebuilding.
+
+## Native-style icons (0.3.0)
+
+`icons/controller.png` and `icons/chest-preference.png` are original AI-generated transparent sprites, resized to 256×256 for the game. The full-resolution outputs are retained as `controller-master.png` and `chest-preference-master.png`, with exact prompts in `icons/generation-prompts.txt`.
+
+The controller sprite depicts the existing book/quill/stool model and appears in the hammer build menu and storage header. The chest preference sprite depicts a small iron-banded chest with a paper category tag. The selected category remains a separate native item badge, so it can update without repainting the AI sprite.
+
+Generation used `tests/runtime/vanilla-icon-reference.png`, an isolated render of actual installed chest, stool, workbench, forge, wood, hammer, resin and coal sprites, to match their camera angle, muted palette, rough materials and soft shading. The reference is a development diagnostic and is excluded from Git and packages; no vanilla sprite is shipped. Package and installation scripts preserve the two production PNGs under `plugins/VSS/icons`.

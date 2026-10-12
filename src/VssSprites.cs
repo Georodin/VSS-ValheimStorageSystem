@@ -6,7 +6,7 @@ internal static class VssSprites
 {
     private static Sprite _standIcon;
 
-    public static Sprite StandIcon => _standIcon ??= CreateStandIcon();
+    public static Sprite StandIcon => VssAssets.ControllerIcon != null ? VssAssets.ControllerIcon : _standIcon ??= CreateStandIcon();
 
     private static Sprite CreateStandIcon()
     {

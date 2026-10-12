@@ -26,30 +26,35 @@ public sealed class VssChestBridge : MonoBehaviour
         _chest = GetComponent<Container>();
         _view = _chest != null ? VssGame.View(_chest) : null;
         if (_view == null || !_view.IsValid()) { enabled = false; return; }
-        _view.Register<long, ZDOID, string>("VSS_Acquire", Request);
+        _view.Register<ZPackage>("VSS_AcquireV3", Request);
         _view.Register<string, bool>("VSS_Grant", Reply);
     }
     internal string Begin(Player player, VssAccessStand stand)
+        => Begin(new VssContext { Player = player, Actor = player.GetPlayerID(), Stand = stand, Mode = VssAccessMode.Grid });
+    internal string Begin(VssContext context)
     {
         Granted = false; Rejected = false;
         _pendingToken = Guid.NewGuid().ToString("N");
         _expectedOwner = _view.GetZDO().GetOwner();
         var token = _pendingToken;
-        _view.InvokeRPC("VSS_Acquire", player.GetPlayerID(), stand.GetComponent<ZNetView>().GetZDO().m_uid, token);
+        var package = new ZPackage();
+        package.Write(context.Actor); package.Write(context.StandId); package.Write(context.TargetId); package.Write((int)context.Mode); package.Write(token);
+        _view.InvokeRPC("VSS_AcquireV3", package);
         return token;
     }
-    private void Request(long sender, long playerId, ZDOID standId, string token)
+    private void Request(long sender, ZPackage package)
     {
         if (!_view.IsOwner()) return;
+        long playerId; ZDOID standId, targetId; VssAccessMode mode; string token;
+        try { playerId = package.ReadLong(); standId = package.ReadZDOID(); targetId = package.ReadZDOID(); mode = (VssAccessMode)package.ReadInt(); token = package.ReadString(); }
+        catch { return; }
         var zdo = _view.GetZDO();
         if (!VssSettings.Ready || string.IsNullOrEmpty(token) || token.Length > 64 || _chest.IsInUse() || IsLeased(zdo) ||
             !VssStorageScanner.Supported(_chest) || !VssGame.CheckAccess(_chest, playerId)) { Deny(sender, token); return; }
         var stand = ZDOMan.instance.GetZDO(standId);
-        var player = Player.GetAllPlayers().FirstOrDefault(p => p != null && p.GetPlayerID() == playerId &&
-            p.GetComponent<ZNetView>() != null && p.GetComponent<ZNetView>().IsValid() && p.GetComponent<ZNetView>().GetZDO().GetOwner() == sender);
-        if (stand == null || stand.GetPrefab() != VssPieceRegistry.PrefabName.GetStableHashCode() || player == null || player.IsDead() ||
+        var target = targetId == ZDOID.None ? null : ZDOMan.instance.GetZDO(targetId);
+        if (!VssContext.Authorize(sender, playerId, stand, target, mode) ||
             (stand.GetPosition() - transform.position).sqrMagnitude > VssSettings.Radius * VssSettings.Radius ||
-            (stand.GetPosition() - player.transform.position).sqrMagnitude > 25f ||
             (_chest.m_checkGuardStone && !VssAccessStand.HasWardAccess(playerId, transform.position)) ||
             !VssAccessStand.HasWardAccess(playerId, stand.GetPosition())) { Deny(sender, token); return; }
         // Load on the old owner before publishing the lease and fresh items in one ZDO update.
