@@ -5,6 +5,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if (!$NoInstall -and (Get-Process -Name valheim -ErrorAction SilentlyContinue)) {
+    throw 'Close Valheim before installing VSS. Use -NoInstall to build safely while the game is open, or test-isolated.ps1 for separate headless tests.'
+}
+
 if (-not (Test-Path (Join-Path $PSScriptRoot "..\BepInEx\core\BepInEx.dll"))) {
     throw "BepInEx was not found in the Valheim folder. Install BepInExPack_Valheim first, then run this build again."
 }

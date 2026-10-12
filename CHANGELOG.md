@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.2 — performance fix
+
+- Remove scene-wide Unity object searches from ward checks; read Valheim's live ward registry instead.
+- Cache controller lookup and indexed item totals for repeated build and workbench availability checks, including when no controller is nearby.
+- Refresh availability on inventory changes, movement, station changes, radius/world changes, transaction changes and a short periodic timeout.
+- Reuse refill hover hints and avoid finding the controller twice on every hover update.
+- Avoid temporary argument arrays and allocated scopes in native requirement patches.
+- Preserve fresh permission checks, chest leases and exact resource planning for actual actions.
+- Add an independent low-priority headless test runner that leaves an open game's installation, config, logs and saves untouched.
+- Prevent normal build/install commands from replacing the mod while Valheim is running.
+
 ## 0.3.1
 
 - Keep the storage controller master Off by default and start every refillable object's automatic supplies Off too.

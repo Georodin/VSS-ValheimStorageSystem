@@ -117,6 +117,7 @@ internal static class VssRefillTests
                     AccessTools.Method(typeof(VssObjectAutoHoverPatch), "Postfix").Invoke(null, hover);
                     check(((string)hover[1]).StartsWith("Native fireplace text") && ((string)hover[1]).Contains("VSS auto-refill: Off"),
                         "production native hover decorator preserves base text and adds the object control");
+                    VssPerformanceTests.Hover(check, bridge, actor);
                 }
                 var setAuto = AccessTools.MethodDelegate<Action<VssRefillBridge, long, long, bool, string>>(AccessTools.Method(typeof(VssRefillBridge), "SetAutoRefill"));
                 setAuto(bridge, ZDOMan.GetSessionID() + 1, actor.GetPlayerID(), true, "wrong-sender");
@@ -167,6 +168,7 @@ internal static class VssRefillTests
                 }
             }
             SafeWood(check, vanilla, root, manager, scene);
+            VssPerformanceTests.Run(check, root, manager, actor);
             controller.ToggleAutoRefill(actor);
             check(!controller.AutoRefill, "master Off can be restored after shared object toggles");
         }

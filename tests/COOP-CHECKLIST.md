@@ -1,6 +1,6 @@
 # Live co-op acceptance checks
 
-These require two players with VSS 0.3.1, plus VSS on the host/server. The scripted diagnostics do not replace this session. Version 0.2.4's storage grid passed author-reported co-op testing; these additions need a new live session.
+These require two players with VSS 0.3.2, plus VSS on the host/server. The scripted diagnostics do not replace this session. Version 0.2.4's storage grid passed author-reported co-op testing; these additions need a new live session.
 
 - Build a pedestal for exactly 5 wood without a workbench. Rejoin and confirm it remains interactable.
 - Put each supported chest type inside 20m and another outside 20m. Verify inclusion uses distance from the pedestal, including height.
@@ -37,3 +37,4 @@ These require two players with VSS 0.3.1, plus VSS on the host/server. The scrip
 - Select Half and One. Test odd stacks, single items and a nearly full inventory; repeat with Shift/Ctrl overrides.
 - Right-click stored food/mead with a full player inventory. Test normal food limits and mead cooldowns, then have both players consume the last stored item at once.
 - Save/reload after resource actions and compare remaining chest amounts, player items, outputs, machine queues and fuel levels.
+- Check building, normal and alternate-ingredient workbench recipes, and refill hover in a large base. Change another player's chest contents or ward permissions while the UI is open; counts should refresh and denied actions must never spend items.

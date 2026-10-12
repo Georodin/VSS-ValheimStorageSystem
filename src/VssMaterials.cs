@@ -74,7 +74,7 @@ internal sealed class VssMaterialPlan
         r != null && r.m_resItem != null && r.m_upgraderResource == (player.GetCurrentCraftingStation() != null && player.GetCurrentCraftingStation().m_upgrader));
     internal static List<VssNeed> Needs(Player player, Piece.Requirement[] requirements, int quality, int multiplier) => Applicable(player, requirements)
         .Select(r => new VssNeed(r.m_resItem.m_itemData.m_shared.m_name, checked(r.GetAmount(quality) * multiplier))).Where(n => n.Amount > 0).ToList();
-    internal static VssMaterialPlan ForRecipe(Player player, Recipe recipe, int quality, int multiplier, List<Inventory> storage, ItemDrop.ItemData exclude)
+    internal static VssMaterialPlan ForRecipe(Player player, Recipe recipe, int quality, int multiplier, List<Inventory> storage, ItemDrop.ItemData exclude, bool readAvailability = false)
     {
         if (!recipe.m_requireOnlyOneIngredient)
         {
@@ -88,6 +88,13 @@ internal sealed class VssMaterialPlan
             if (count <= 0) continue;
             for (var q = 0; q <= req.m_resItem.m_itemData.m_shared.m_maxQuality; q++)
             {
+                // UI previews can skip absent qualities in constant time. Payments leave this
+                // disabled and always plan directly against their freshly leased inventories.
+                if (readAvailability)
+                {
+                    using var scope = new VssResources.Scope(player);
+                    if (player.GetInventory().CountItems(req.m_resItem.m_itemData.m_shared.m_name, q, true) < count) continue;
+                }
                 var need = new VssNeed(req.m_resItem.m_itemData.m_shared.m_name, count, q);
                 var single = Build(player.GetInventory(), storage, new[] { need }, exclude);
                 if (single == null) continue;
@@ -104,42 +111,66 @@ internal static class VssResources
 {
     internal static VssMaterialPlan Current;
     private static Player _cachedPlayer;
-    private static VssAccessStand _cachedStand;
+    private static CraftingStation _cachedStation;
+    private static ZNetScene _cachedScene;
     private static UnityEngine.Vector3 _cachedOrigin;
+    private static UnityEngine.Vector3 _cachedStationOrigin;
+    private static bool _cachedUseStation;
+    private static float _cachedRadius;
+    private static int _cachedWorld;
     private static int _generation;
+    private static int _inventoryRevision, _cachedRevision;
     private static float _until;
     private static readonly List<Inventory> Cache = new();
+    private static readonly List<Inventory> Empty = new();
+    private static readonly VssResourceTotals Totals = new();
+    internal static int Refreshes;
+    internal static void Invalidate() { _inventoryRevision++; _until = 0; }
     internal static List<Inventory> Inventories(Player player)
     {
         if (Current != null && Current.Player == player) return Current.ChestInventories.ToList();
-        var context = VssContext.ForPlayer(player, UseCraftingStation);
-        if (context == null) return new List<Inventory>();
-        if (_cachedPlayer != player || _cachedStand != context.Stand || _generation != VssTransactions.Generation ||
-            UnityEngine.Time.unscaledTime >= _until || (context.Origin - _cachedOrigin).sqrMagnitude > 0.25f)
+        if (player == null || player != Player.m_localPlayer || !VssSettings.Ready || player.IsDead() || player.IsTeleporting()) return Empty;
+        var position = player.transform.position;
+        var station = UseCraftingStation ? player.GetCurrentCraftingStation() : null;
+        var stationPosition = station != null ? station.transform.position : position;
+        if (_cachedPlayer != player || _cachedStation != station || _cachedScene != ZNetScene.instance ||
+            _cachedUseStation != UseCraftingStation || _cachedRadius != VssSettings.Radius || _cachedWorld != Game.m_worldLevel ||
+            _generation != VssTransactions.Generation || _cachedRevision != _inventoryRevision || UnityEngine.Time.unscaledTime >= _until ||
+            (position - _cachedOrigin).sqrMagnitude > 0.25f || (stationPosition - _cachedStationOrigin).sqrMagnitude > 0.25f)
         {
-            Cache.Clear(); Cache.AddRange(VssStorageScanner.Sources(context).Select(c => c.GetInventory()));
-            _cachedPlayer = player; _cachedStand = context.Stand; _cachedOrigin = context.Origin;
+            Refreshes++;
+            var context = VssContext.ForPlayer(player, UseCraftingStation);
+            Cache.Clear();
+            if (context != null) foreach (var chest in VssStorageScanner.Sources(context)) Cache.Add(chest.GetInventory());
+            Totals.Reset(Game.m_worldLevel);
+            foreach (var inventory in Cache) foreach (var item in inventory.GetAllItems()) Totals.Add(item);
+            _cachedPlayer = player; _cachedStation = station; _cachedOrigin = position; _cachedStationOrigin = stationPosition;
+            _cachedUseStation = UseCraftingStation; _cachedScene = ZNetScene.instance;
+            _cachedRadius = VssSettings.Radius; _cachedWorld = Game.m_worldLevel; _cachedRevision = _inventoryRevision;
             _generation = VssTransactions.Generation; _until = UnityEngine.Time.unscaledTime + 0.35f;
         }
         return Cache;
     }
     internal static int Stored(Player player, string name, int quality, bool world)
     {
+        var inventories = Inventories(player);
+        if (ReferenceEquals(inventories, Cache)) return Totals.Count(name, quality, world);
         var amount = 0;
-        foreach (var inventory in Inventories(player))
+        foreach (var inventory in inventories)
             foreach (var item in inventory.GetAllItems())
                 if (item.m_stack > 0 && !item.m_equipped && (name == null || item.m_shared.m_name == name) &&
                     (quality < 0 || item.m_quality == quality) && (!world || item.m_worldLevel >= Game.m_worldLevel))
                     amount = checked(amount + item.m_stack);
         return amount;
     }
-    internal sealed class Scope : IDisposable
+    internal readonly struct Scope : IDisposable
     {
         private readonly Player _previous;
         private readonly bool _previousStation;
+        private readonly bool _active;
         internal Scope(Player player, bool useCraftingStation = true)
-        { _previous = Reading; _previousStation = UseCraftingStation; Reading = player; UseCraftingStation = useCraftingStation; }
-        public void Dispose() { Reading = _previous; UseCraftingStation = _previousStation; }
+        { _previous = Reading; _previousStation = UseCraftingStation; _active = true; Reading = player; UseCraftingStation = useCraftingStation; }
+        public void Dispose() { if (_active) { Reading = _previous; UseCraftingStation = _previousStation; } }
     }
     internal static Player Reading;
     internal static bool UseCraftingStation = true;

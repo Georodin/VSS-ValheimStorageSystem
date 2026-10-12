@@ -9,7 +9,7 @@ public sealed class VssPlugin : BaseUnityPlugin
 {
     public const string ModGuid = "georo.vss";
     public const string ModName = "VSS";
-    public const string ModVersion = "0.3.1";
+    public const string ModVersion = "0.3.2";
 
     internal static ManualLogSource Log;
     internal static VssConfig ModConfig;

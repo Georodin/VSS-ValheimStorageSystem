@@ -43,12 +43,27 @@ public sealed class VssAccessStand : MonoBehaviour, Interactable, Hoverable
         view.GetZDO().Set(AutoKey, enabled);
         VssGame.ForceSend(ZDOMan.instance, view.GetZDO().m_uid);
     }
-    internal static VssAccessStand Find(Vector3 origin, long actor, bool automatic = false) => Instances
-        .Where(s => s != null && s.gameObject.activeInHierarchy && s.GetComponent<ZNetView>() is ZNetView view && view.IsValid() &&
-            (!automatic || s.AutoRefill) && (s.transform.position - origin).sqrMagnitude <= VssSettings.Radius * VssSettings.Radius &&
-            HasWardAccess(actor, s.transform.position) && HasWardAccess(actor, origin))
-        .OrderBy(s => (s.transform.position - origin).sqrMagnitude)
-        .ThenBy(s => s.GetComponent<ZNetView>().GetZDO().m_uid.ToString(), System.StringComparer.Ordinal).FirstOrDefault();
+    internal static int Searches;
+    internal static VssAccessStand Find(Vector3 origin, long actor, bool automatic = false)
+    {
+        Searches++;
+        if (Instances.Count == 0 || !HasWardAccess(actor, origin)) return null;
+        var radius2 = VssSettings.Radius * VssSettings.Radius;
+        VssAccessStand nearest = null;
+        var distance = float.MaxValue;
+        foreach (var stand in Instances)
+        {
+            if (stand == null || !stand.gameObject.activeInHierarchy) continue;
+            var d = (stand.transform.position - origin).sqrMagnitude;
+            if (d > radius2 || d > distance) continue;
+            var view = stand.GetComponent<ZNetView>();
+            if (view == null || !view.IsValid() || automatic && !stand.AutoRefill || !HasWardAccess(actor, stand.transform.position)) continue;
+            if (d == distance && nearest != null && System.StringComparer.Ordinal.Compare(view.GetZDO().m_uid.ToString(),
+                nearest.GetComponent<ZNetView>().GetZDO().m_uid.ToString()) >= 0) continue;
+            nearest = stand; distance = d;
+        }
+        return nearest;
+    }
     public string GetHoverText() => Localization.instance.Localize("Storage Inventory\n[<color=yellow><b>$KEY_Use</b></color>] Open storage");
     public string GetHoverName() => "Storage Inventory";
     public float GetHoverOffset() => 0.75f;
@@ -63,11 +78,13 @@ public sealed class VssAccessStand : MonoBehaviour, Interactable, Hoverable
     internal static bool HasWardAccess(long playerId, Vector3 point)
     {
         // PrivateArea.CheckAccess uses the LOCAL player. On an owner peer, check the requesting ID explicitly.
-        var areas = UnityEngine.Object.FindObjectsByType<PrivateArea>(FindObjectsSortMode.None);
+        // Use the same live registry as vanilla. A scene-wide object search here made
+        // every build/recipe requirement and refill hover scan the entire world.
+        var areas = VssGame.Wards;
         var inside = false;
         foreach (var area in areas)
         {
-            if (!VssGame.WardEnabled(area) || !VssGame.WardInside(area, point, 0f)) continue;
+            if (area == null || !VssGame.WardEnabled(area) || !VssGame.WardInside(area, point, 0f)) continue;
             inside = true;
             var piece = area.GetComponent<Piece>();
             if ((piece != null && piece.GetCreator() == playerId) || VssGame.WardPermitted(area, playerId)) return true;

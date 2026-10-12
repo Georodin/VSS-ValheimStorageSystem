@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
 
 namespace VSS;
@@ -13,6 +14,7 @@ internal static class VssGame
     internal static readonly Func<PrivateArea, bool> WardEnabled = AccessTools.MethodDelegate<Func<PrivateArea, bool>>(AccessTools.Method(typeof(PrivateArea), "IsEnabled"));
     internal static readonly Func<PrivateArea, UnityEngine.Vector3, float, bool> WardInside = AccessTools.MethodDelegate<Func<PrivateArea, UnityEngine.Vector3, float, bool>>(AccessTools.Method(typeof(PrivateArea), "IsInside"));
     internal static readonly Func<PrivateArea, long, bool> WardPermitted = AccessTools.MethodDelegate<Func<PrivateArea, long, bool>>(AccessTools.Method(typeof(PrivateArea), "IsPermitted"));
+    internal static readonly List<PrivateArea> Wards = AccessTools.StaticFieldRefAccess<List<PrivateArea>>(typeof(PrivateArea), "m_allAreas");
     internal static readonly Action<ZDOMan, ZDOID> ForceSend = AccessTools.MethodDelegate<Action<ZDOMan, ZDOID>>(AccessTools.Method(typeof(ZDOMan), "ForceSendZDO", new[] { typeof(ZDOID) }));
     public static void Notify(Inventory inventory) => Changed(inventory, true, false);
 }

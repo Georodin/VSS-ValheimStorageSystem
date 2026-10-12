@@ -24,6 +24,12 @@ public sealed class VssRefillBridge : MonoBehaviour
     private string _autoRequest;
     private long _autoOwner;
     private float _autoUntil;
+    private Player _hintPlayer;
+    private VssAccessStand _hintStand;
+    private Vector3 _hintPosition;
+    private float _hintUntil, _hintRadius;
+    private bool _hintAuto, _hintMaster;
+    private string _hintText;
     private static float _nextAuto;
     private static int _cursor;
     private static readonly Func<CookingStation, bool> CookingFire = AccessTools.MethodDelegate<Func<CookingStation, bool>>(AccessTools.Method(typeof(CookingStation), "IsFireLit"));
@@ -106,9 +112,23 @@ public sealed class VssRefillBridge : MonoBehaviour
         (enabled && !master ? " <color=#b0a58d>(master Off)</color>" : "");
     internal string HoverHint(Player player)
     {
-        if (!CanToggle(player)) return "";
-        var stand = VssAccessStand.Find(transform.position, player.GetPlayerID());
-        return AutoHint(AutoRefill, stand != null && stand.AutoRefill, VssPlugin.ModConfig.AutoRefillToggleKey.Value.ToString());
+        if (player == null || player.IsDead() || player.IsTeleporting() || !VssSettings.Ready ||
+            _view == null || !_view.IsValid() || !CanAutoRefill || (player.transform.position - transform.position).sqrMagnitude > 25f) return "";
+        if (_hintPlayer != player || Time.unscaledTime >= _hintUntil || _hintRadius != VssSettings.Radius ||
+            (transform.position - _hintPosition).sqrMagnitude > 0.25f)
+        {
+            _hintPlayer = player; _hintPosition = transform.position; _hintRadius = VssSettings.Radius;
+            _hintStand = VssAccessStand.Find(transform.position, player.GetPlayerID());
+            _hintUntil = Time.unscaledTime + 0.25f; _hintText = null;
+        }
+        if (_hintStand == null) return "";
+        var auto = AutoRefill; var master = _hintStand.AutoRefill;
+        if (_hintText == null || _hintAuto != auto || _hintMaster != master)
+        {
+            _hintAuto = auto; _hintMaster = master;
+            _hintText = AutoHint(auto, master, VssPlugin.ModConfig.AutoRefillToggleKey.Value.ToString());
+        }
+        return _hintText;
     }
     private void OnDestroy() => Instances.Remove(this);
     internal static int FuelRoom(float fuel, float maximum, bool ceil) => Math.Max(0, Mathf.FloorToInt(maximum - (ceil ? Mathf.Ceil(fuel) : fuel)));

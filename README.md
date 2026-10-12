@@ -4,6 +4,8 @@
 
 Build a book-and-quill pedestal, press **E**, and search all your nearby chests from one screen. Your items stay in the actual chests.
 
+**0.3.2 performance update:** addresses lag while building, using workbenches and facing refillable objects. Automatic refill still starts Off, and special woods remain protected.
+
 ![VSS storage grid](https://raw.githubusercontent.com/Georodin/VSS-ValheimStorageSystem/v0.3.1/assets/screenshots/storage-grid.png)
 
 The storage controller and linked-chest preference button now use new icons styled to fit Valheim's inventory artwork.
@@ -26,7 +28,7 @@ The storage controller and linked-chest preference button now use new icons styl
 - **Station supplies:** add fuel and processing inputs directly from storage to kilns, smelters, blast furnaces, fires, torches, lamps, cooking stations, ovens and other pieces using the same native components.
 - **Automatic refill:** one master switch per storage network plus a saved on/off choice for each nearby fuel user or processing machine. Both start off.
 - **Partial stacks and consumption:** select Stack/Half/One and right-click stored food or mead to consume it directly.
-- **Co-op support:** synchronized chest access, permissions and host-controlled settings. The author reported successful multiplayer testing of 0.2.4; the new 0.3.1 resource features need live co-op testing.
+- **Co-op support:** synchronized chest access, permissions and host-controlled settings. The author reported successful multiplayer testing of 0.2.4; the newer resource features need broader live co-op testing.
 
 Wooden, reinforced and black metal chests, barrels, and accessible personal chests are supported. Chest privacy and ward permissions apply. Carts, ships, graves and temporary loot containers are excluded.
 
@@ -114,7 +116,7 @@ Set the radius and additional automatic-refill exclusions on the host/server; cl
 
 ## Multiplayer
 
-The author tested the 0.2.4 storage grid in co-op successfully. Version 0.3.1 adds crafting, building and automatic supplies with per-object controls; these new features have passed isolated native checks and still need broader live co-op validation. All participants need the same mod version. Chest owners validate access, distance and the pedestal, then grant a short exclusive lease before transfers update the normal chest inventory. Vanilla chest operations respect the lease.
+The author tested the 0.2.4 storage grid in co-op successfully. Version 0.3.1 added crafting, building and automatic supplies with per-object controls; version 0.3.2 addresses lag in their availability and hover checks. These newer features have passed isolated native checks and still need broader live co-op validation. All participants need the same mod version. Chest owners validate access, distance and the pedestal, then grant a short exclusive lease before transfers update the normal chest inventory. Vanilla chest operations respect the lease.
 
 Crafting and building acquire all required chest leases before the native action. Changed resources or a cancelled crafting action abort before payment. Refill operations run on the machine's owner and remove a resource only after the native machine actually accepts it.
 
@@ -132,10 +134,15 @@ Clone this repository as `VSS-ValheimStorageSystem` inside your Valheim installa
 .\build.ps1 -NoInstall
 .\test.ps1
 .\test.ps1 -RenderPreview
+.\test-isolated.ps1
 .\package.ps1
 ```
 
 Running `build.ps1` without `-NoInstall` also installs the mod locally. `package.ps1` writes the Thunderstore ZIP under `dist` without changing the installed mod.
+
+Use `test-isolated.ps1` while the game is open. It creates a separate hidden headless runtime with its own mod, config, logs and temporary saves, runs at idle priority and never installs into the live game. Normal build/install commands require Valheim to be closed. After testing, `package.ps1 -SkipBuild` packages the exact existing DLL and rejects C# sources newer than that build.
+
+**6,241 native checks passed for 0.3.2**, including a stress fixture with 60 chests and 3,000 stacks. Repeated building, workbench and refill hover reads reuse availability data instead of searching the Unity scene or traversing every stored stack on each query. Inventory changes invalidate item totals; availability also refreshes periodically and when the player, station, radius or world changes. Actual actions recheck permissions and plan payments from fresh, leased inventories. The synthetic timing report is in `tests/runtime/isolated-game/report.performance.txt`; these timings measure query work and do not predict FPS in a particular world.
 
 **6,064 native runtime checks passed at both 1440×1080 and 800×900** for version 0.3.1. Diagnostics cover inventory quantity/identity conservation, stacking, full inventories, equipment, lease expiry, native recipe discovery, asset-bundle loading, storage payment planning, scoped native recipe checks, alternate-ingredient batches, direct consumption, owner-side station acceptance, fuel/queue limits, authenticated object toggles, saved switch states, special-wood protection and UI layout. Tests use isolated temporary inventories and saves, and require Valheim to be closed. The screenshot above is an in-game runtime preview with test inventories.
 

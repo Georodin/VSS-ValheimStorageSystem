@@ -66,31 +66,35 @@ internal static class VssCraftCancelPatch { private static void Prefix() => VssC
 [HarmonyPatch(typeof(InventoryGui), "Hide")]
 internal static class VssCraftClosePatch { private static void Prefix() => VssCrafting.Cancellation++; }
 
-[HarmonyPatch]
-internal static class VssRequirementsReadPatch
+[HarmonyPatch(typeof(Player), "HaveRequirementItems")]
+internal static class VssRecipeRequirementsReadPatch
 {
-    private static IEnumerable<MethodBase> TargetMethods()
-    {
-        yield return AccessTools.Method(typeof(Player), "HaveRequirementItems");
-        yield return AccessTools.Method(typeof(Player), "HaveRequirements", new[] { typeof(Piece), typeof(Player.RequirementMode) });
-        yield return AccessTools.Method(typeof(Player), "GetFirstRequiredItem");
-    }
-    private static void Prefix(Player __instance, object[] __args, MethodBase __originalMethod, out VssResources.Scope __state)
-    {
-        __state = null;
-        if (__instance != Player.m_localPlayer) return;
-        if (__originalMethod.Name == "HaveRequirementItems" && (bool)__args[1]) return;
-        if (__originalMethod.Name == "HaveRequirements" && (Player.RequirementMode)__args[1] == Player.RequirementMode.IsKnown) return;
-        __state = new VssResources.Scope(__instance, __originalMethod.Name != "HaveRequirements");
-    }
-    private static Exception Finalizer(Exception __exception, VssResources.Scope __state) { __state?.Dispose(); return __exception; }
+    private static void Prefix(Player __instance, bool discover, out VssResources.Scope __state) =>
+        __state = __instance == Player.m_localPlayer && !discover ? new VssResources.Scope(__instance) : default;
+    private static Exception Finalizer(Exception __exception, VssResources.Scope __state) { __state.Dispose(); return __exception; }
+}
+[HarmonyPatch(typeof(Player), "HaveRequirements", new[] { typeof(Piece), typeof(Player.RequirementMode) })]
+internal static class VssBuildRequirementsReadPatch
+{
+    private static void Prefix(Player __instance, Player.RequirementMode mode, out VssResources.Scope __state) =>
+        __state = __instance == Player.m_localPlayer && mode != Player.RequirementMode.IsKnown ? new VssResources.Scope(__instance, false) : default;
+    private static Exception Finalizer(Exception __exception, VssResources.Scope __state) { __state.Dispose(); return __exception; }
+}
+[HarmonyPatch(typeof(Player), "GetFirstRequiredItem")]
+internal static class VssIngredientRequirementsReadPatch
+{
+    private static void Prefix(Player __instance, out VssResources.Scope __state) =>
+        __state = __instance == Player.m_localPlayer ? new VssResources.Scope(__instance) : default;
+    private static Exception Finalizer(Exception __exception, VssResources.Scope __state) { __state.Dispose(); return __exception; }
 }
 [HarmonyPatch(typeof(InventoryGui), "SetupRequirement")]
 internal static class VssRequirementColorPatch
 {
     private static void Prefix(Player player, bool craft, out VssResources.Scope __state) => __state = new VssResources.Scope(player == Player.m_localPlayer ? player : null, craft);
-    private static Exception Finalizer(Exception __exception, VssResources.Scope __state) { __state?.Dispose(); return __exception; }
+    private static Exception Finalizer(Exception __exception, VssResources.Scope __state) { __state.Dispose(); return __exception; }
 }
+[HarmonyPatch(typeof(Inventory), "Changed")]
+internal static class VssResourceAvailabilityChangedPatch { private static void Postfix() => VssResources.Invalidate(); }
 [HarmonyPatch(typeof(Inventory), "CountItems")]
 internal static class VssResourceCountPatch
 {
@@ -121,7 +125,7 @@ internal static class VssSingleIngredientPatch
         { __result = current.SingleSample; amount = current.Single.Amount; }
         else if (__result == null)
         {
-            var plan = VssMaterialPlan.ForRecipe(__instance, recipe, qualityLevel, craftMultiplier, VssResources.Inventories(__instance), null);
+            var plan = VssMaterialPlan.ForRecipe(__instance, recipe, qualityLevel, craftMultiplier, VssResources.Inventories(__instance), null, true);
             if (plan?.Single != null) { __result = plan.SingleSample; amount = plan.Single.Amount; }
         }
         if (__result != null)
@@ -137,7 +141,7 @@ internal static class VssAlternateAmountPatch
     private static bool Prefix(Recipe __instance, int quality, int craftMultiplier, ref int need, ref ItemDrop.ItemData singleReqItem, ref int __result)
     {
         if (!__instance.m_requireOnlyOneIngredient || Player.m_localPlayer == null ||
-            (VssResources.Current?.Player != Player.m_localPlayer && VssContext.ForPlayer(Player.m_localPlayer) == null)) return true;
+            (VssResources.Current?.Player != Player.m_localPlayer && VssResources.Inventories(Player.m_localPlayer).Count == 0)) return true;
         singleReqItem = Player.m_localPlayer.GetFirstRequiredItem(Player.m_localPlayer.GetInventory(), __instance, quality, out need, out var extra, craftMultiplier);
         var itemQuality = singleReqItem?.m_quality ?? 1;
         __result = checked((__instance.m_amount + Mathf.CeilToInt((itemQuality - 1) * __instance.m_amount * __instance.m_qualityResultAmountMultiplier) + extra) * craftMultiplier);

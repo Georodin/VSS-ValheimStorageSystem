@@ -1,12 +1,18 @@
 param(
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
 
-& (Join-Path $PSScriptRoot "build.ps1") -Configuration $Configuration -NoInstall
-if ($LASTEXITCODE -ne 0) {
-    throw "Build failed."
+if (!$SkipBuild) {
+    & (Join-Path $PSScriptRoot "build.ps1") -Configuration $Configuration -NoInstall
+    if ($LASTEXITCODE -ne 0) { throw "Build failed." }
+} else {
+    $existingDll = Get-Item -LiteralPath (Join-Path $PSScriptRoot 'bin/VSS.dll')
+    if (Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src') -Filter *.cs -File | Where-Object LastWriteTimeUtc -gt $existingDll.LastWriteTimeUtc) {
+        throw 'Source changed since the existing build. Rebuild and test before packaging with -SkipBuild.'
+    }
 }
 
 $manifestPath = Join-Path $PSScriptRoot "manifest.json"
