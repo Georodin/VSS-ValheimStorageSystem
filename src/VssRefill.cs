@@ -9,7 +9,7 @@ namespace VSS;
 
 internal enum VssRefillKind { Fuel, Input }
 
-public sealed class VssRefillBridge : MonoBehaviour
+public sealed partial class VssRefillBridge : MonoBehaviour
 {
     internal const string AutoKey = "vss_object_auto_refill";
     internal static readonly HashSet<VssRefillBridge> Instances = new();
@@ -28,7 +28,8 @@ public sealed class VssRefillBridge : MonoBehaviour
     private VssAccessStand _hintStand;
     private Vector3 _hintPosition;
     private float _hintUntil, _hintRadius;
-    private bool _hintAuto, _hintMaster;
+    private bool _hintAuto, _hintMaster, _hintCollect, _hintCollectMaster;
+    private BepInEx.Configuration.KeyboardShortcut _hintRefillKey, _hintCollectKey;
     private string _hintText;
     private static float _nextAuto;
     private static int _cursor;
@@ -70,6 +71,7 @@ public sealed class VssRefillBridge : MonoBehaviour
         _view.Register<string, int, string>("VSS_RefillResult", Reply);
         _view.Register<long, bool, string>("VSS_SetObjectAuto", SetAutoRefill);
         _view.Register<string, bool, bool>("VSS_ObjectAutoResult", AutoReply);
+        RegisterCollectRpc();
     }
     private bool CanToggle(Player player) => player != null && !player.IsDead() && !player.IsTeleporting() &&
         VssSettings.Ready && _view != null && _view.IsValid() && CanAutoRefill &&
@@ -113,7 +115,7 @@ public sealed class VssRefillBridge : MonoBehaviour
     internal string HoverHint(Player player)
     {
         if (player == null || player.IsDead() || player.IsTeleporting() || !VssSettings.Ready ||
-            _view == null || !_view.IsValid() || !CanAutoRefill || (player.transform.position - transform.position).sqrMagnitude > 25f) return "";
+            _view == null || !_view.IsValid() || !(CanAutoRefill || CanAutoCollect) || (player.transform.position - transform.position).sqrMagnitude > 25f) return "";
         if (_hintPlayer != player || Time.unscaledTime >= _hintUntil || _hintRadius != VssSettings.Radius ||
             (transform.position - _hintPosition).sqrMagnitude > 0.25f)
         {
@@ -123,10 +125,16 @@ public sealed class VssRefillBridge : MonoBehaviour
         }
         if (_hintStand == null) return "";
         var auto = AutoRefill; var master = _hintStand.AutoRefill;
-        if (_hintText == null || _hintAuto != auto || _hintMaster != master)
+        var collect = AutoCollect; var collectMaster = _hintStand.AutoCollect;
+        var refillKey = VssPlugin.ModConfig.AutoRefillToggleKey.Value;
+        var collectKey = VssPlugin.ModConfig.AutoCollectToggleKey.Value;
+        if (_hintText == null || _hintAuto != auto || _hintMaster != master || _hintCollect != collect ||
+            _hintCollectMaster != collectMaster || !_hintRefillKey.Equals(refillKey) || !_hintCollectKey.Equals(collectKey))
         {
-            _hintAuto = auto; _hintMaster = master;
-            _hintText = AutoHint(auto, master, VssPlugin.ModConfig.AutoRefillToggleKey.Value.ToString());
+            _hintAuto = auto; _hintMaster = master; _hintCollect = collect; _hintCollectMaster = collectMaster;
+            _hintRefillKey = refillKey; _hintCollectKey = collectKey;
+            _hintText = (CanAutoRefill ? AutoHint(auto, master, refillKey.ToString()) : "") +
+                (CanAutoCollect ? AutoHint(collect, collectMaster, collectKey.ToString()).Replace("auto-refill", "auto-collect") : "");
         }
         return _hintText;
     }
@@ -271,13 +279,7 @@ public sealed class VssRefillBridge : MonoBehaviour
             var index = (_cursor + n) % targets.Count; var target = targets[index];
             // Choose the nearest eligible controller before checking its master switch, so an
             // overlapping enabled network cannot bypass the selected network's Off switch.
-            var stand = VssAccessStand.Instances.Where(s => s != null && s.gameObject.activeInHierarchy &&
-                s.GetComponent<ZNetView>() is ZNetView view && view.IsValid() &&
-                (s.transform.position - target.transform.position).sqrMagnitude <= VssSettings.Radius * VssSettings.Radius)
-                .OrderBy(s => (s.transform.position - target.transform.position).sqrMagnitude)
-                .ThenBy(s => s.GetComponent<ZNetView>().GetZDO().m_uid.ToString(), StringComparer.Ordinal).FirstOrDefault(s =>
-                    VssAccessStand.HasWardAccess(s.GetComponent<Piece>().GetCreator(), s.transform.position) &&
-                    VssAccessStand.HasWardAccess(s.GetComponent<Piece>().GetCreator(), target.transform.position));
+            var stand = VssAccessStand.FindAutomatic(target.transform.position);
             if (stand == null || !stand.AutoRefill) continue;
             var context = new VssContext { Stand = stand, Actor = stand.GetComponent<Piece>().GetCreator(), Target = target._view, Mode = VssAccessMode.Automatic };
             foreach (var kind in new[] { VssRefillKind.Fuel, VssRefillKind.Input })
@@ -301,10 +303,14 @@ internal static class VssObjectAutoInputPatch
     private static void Postfix(Player __instance)
     {
         if (__instance != Player.m_localPlayer || VssUi.IsOpen || __instance.InPlaceMode() ||
-            !VssPlugin.ModConfig.AutoRefillToggleKey.Value.IsDown() || Hud.InRadial() || !TakeInput(__instance)) return;
+            Hud.InRadial() || !TakeInput(__instance)) return;
+        var refill = VssPlugin.ModConfig.AutoRefillToggleKey.Value.IsDown();
+        var collect = VssPlugin.ModConfig.AutoCollectToggleKey.Value.IsDown();
+        if (!refill && !collect) return;
         var hovered = __instance.GetHoverObject();
         var bridge = hovered != null ? hovered.GetComponentInParent<VssRefillBridge>() : null;
-        bridge?.ToggleAutoRefill(__instance);
+        if (collect) bridge?.ToggleAutoCollect(__instance);
+        else if (refill) bridge?.ToggleAutoRefill(__instance);
     }
 }
 

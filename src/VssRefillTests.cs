@@ -168,6 +168,7 @@ internal static class VssRefillTests
                 }
             }
             SafeWood(check, vanilla, root, manager, scene);
+            VssCollectTests.Run(check, vanilla, root, manager, scene, actor, controller);
             VssPerformanceTests.Run(check, root, manager, actor);
             controller.ToggleAutoRefill(actor);
             check(!controller.AutoRefill, "master Off can be restored after shared object toggles");

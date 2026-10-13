@@ -4,9 +4,9 @@
 
 Build a book-and-quill pedestal, press **E**, and search all your nearby chests from one screen. Your items stay in the actual chests.
 
-**0.3.2 performance update:** addresses lag while building, using workbenches and facing refillable objects. Automatic refill still starts Off, and special woods remain protected.
+**New in 0.4.0:** automatically collect finished machine output with a separate storage-window master and **F7** per-machine toggle. Auto-refill now uses **F6** because Valheim uses G for its radial menu. Both features start Off; the 0.3.2 performance fixes and special-wood protection remain.
 
-![VSS storage grid](https://raw.githubusercontent.com/Georodin/VSS-ValheimStorageSystem/v0.3.1/assets/screenshots/storage-grid.png)
+![VSS storage grid](https://raw.githubusercontent.com/Georodin/VSS-ValheimStorageSystem/v0.4.0/assets/screenshots/storage-grid.png)
 
 The storage controller and linked-chest preference button now use new icons styled to fit Valheim's inventory artwork.
 
@@ -27,6 +27,7 @@ The storage controller and linked-chest preference button now use new icons styl
 - **Craft and build from storage:** workbenches, forges and other crafting stations can use linked chest resources, including upgrades and alternate-ingredient recipes. Your hammer can build using the network too.
 - **Station supplies:** add fuel and processing inputs directly from storage to kilns, smelters, blast furnaces, fires, torches, lamps, cooking stations, ovens and other pieces using the same native components.
 - **Automatic refill:** one master switch per storage network plus a saved on/off choice for each nearby fuel user or processing machine. Both start off.
+- **Automatic collection:** a separate master and per-machine toggle for finished grilled/oven food, coal, metals, flour, linen and other native processing outputs. Stack-first deposits use accessible linked chests; full or busy storage leaves output available.
 - **Partial stacks and consumption:** select Stack/Half/One and right-click stored food or mead to consume it directly.
 - **Co-op support:** synchronized chest access, permissions and host-controlled settings. The author reported successful multiplayer testing of 0.2.4; the newer resource features need broader live co-op testing.
 
@@ -57,7 +58,9 @@ For a manual installation, install [BepInExPack Valheim](https://thunderstore.io
 | Equip, unequip or consume | Right-click an inventory item |
 | Consume stored food or mead | Right-click it in the upper storage grid; normal food limits and cooldowns apply |
 | Toggle the network's automatic supplies | Click **Auto refill master: Off / On** at the top of the storage window |
-| Enable/disable automatic supplies for one object | Face its normal interaction point and press **G**; the hover prompt shows **VSS auto-refill: On / Off** |
+| Enable/disable automatic supplies for one object | Face its normal interaction point and press **F6**; the hover prompt shows **VSS auto-refill: On / Off** |
+| Toggle the network's automatic collection | Click **Auto collect master: Off / On** at the top of the storage window |
+| Enable/disable collection for one machine | Face its normal interaction point and press **F7**; the hover prompt shows **VSS auto-collect: On / Off** |
 | Add station fuel or an input from storage | Use the station's normal interaction when that resource is absent from your inventory |
 | Add multiple station resources | Hold Shift while using its refill/input interaction, up to 50 items |
 | Cancel a drag | Right-click or release outside a destination |
@@ -85,13 +88,23 @@ Place a crafting station or fuel-using piece within a pedestal's radius. Use its
 
 For manual station refilling, your own inventory keeps the normal priority. When you have none of the required fuel or input, VSS supplies it from a linked chest. Cooking racks and ovens support manual input as well as fuel refilling. Native conversion lists determine accepted inputs, including the kiln, smelter, blast furnace, windmill and spinning wheel.
 
-**Auto refill starts off at both levels.** Enable the master switch in a pedestal's storage window, then face each machine, fire or lamp you want supplied and press **G**. The hover prompt shows **VSS auto-refill: On / Off**. These choices are saved on the actual objects and shared in co-op. If you opt an object in while its master is off, the prompt shows **master Off**, and supplies remain paused. Turning the master off pauses every opted-in object in that network while preserving their individual choices. With overlapping networks, the nearest eligible controller supplies the object; an enabled farther controller cannot bypass its master's Off switch.
+**Auto refill starts off at both levels.** Enable the master switch in a pedestal's storage window, then face each machine, fire or lamp you want supplied and press **F6**. The hover prompt shows **VSS auto-refill: On / Off**. These choices are saved on the actual objects and shared in co-op. If you opt an object in while its master is off, the prompt shows **master Off**, and supplies remain paused. Turning the master off pauses every opted-in object in that network while preserving their individual choices. With overlapping networks, the nearest eligible controller supplies the object; an enabled farther controller cannot bypass its master's Off switch.
 
 Loaded, opted-in machines receive fuel and processing inputs periodically, with normal capacity limits. Auto refill uses the pedestal builder's chest and ward permissions; manual actions and object toggles use the acting player's permissions. Automatic cooking inputs are deliberately disabled because unattended cooked food can burn; ovens still receive automatic fuel.
 
 **VSS station supplies use only normal Wood when consuming wood.** Fine wood, core wood, ancient bark, Yggdrasil wood and ashwood are always protected, including when VSS fetches supplies through the normal refill interaction. Clearing `AutoRefillExcludedItems` cannot disable this protection. Coal, resin, ores and other accepted supplies remain available. Building and crafting can still use their required special woods normally. Explicitly using an item through the game's own item-selection interaction retains vanilla behavior.
 
 Use `AutoRefillExcludedItems` for additional automatic-supply exclusions. Auto refill operates on loaded pieces and stops when the controller or object's switch is off, the pedestal is removed, or the object leaves range.
+
+## Automatic collection
+
+Turn on **Auto collect master** in the storage window, then face a grill/cooking station, oven, charcoal kiln, smelter, blast furnace, windmill or spinning wheel and press **F7**. The hover prompt and native notification show its current choice. Collection and refill have separate saved switches: collecting grilled food does not enable raw-food input or automatic fuel use.
+
+The machine owner deposits completed output into accessible chests within the controller's configured radius, using the pedestal builder's permissions and the same exclusive chest leases as other VSS transfers. Existing compatible stacks take priority, then resource preferences guide free slots. Turning either collection switch off stops pending deposits and retains individual choices. The nearest eligible controller determines both masters when networks overlap.
+
+Cooked items are removed from their native slots only after a successful deposit. Full or busy storage leaves food on the grill/oven, where normal overcooking still applies. Kilns and other processing machines retain their normal output effects and drops; VSS records the exact source machine and collects only its opted-in output nearby. Remaining output stays on the ground if only part fits, and its source survives save/load. Unrelated loot and items dropped by players are not collected. Enable collection before production: older unmarked ground drops remain available for normal pickup.
+
+Collection checks loaded opted-in machines periodically and shares the existing transaction queue. Automatic cooking inputs remain disabled; add raw food manually or through the normal storage-backed input interaction. All participants need 0.4.0 for these controls.
 
 ## Configuration
 
@@ -106,17 +119,18 @@ RadiusMeters = 20
 AutoRefillExcludedItems = FineWood,RoundLog,ElderBark,YggdrasilWood,Blackwood
 
 [Controls]
-AutoRefillToggleKey = G
+AutoRefillToggleKey = F6
+AutoCollectToggleKey = F7
 
 [UI]
 RefreshSeconds = 0.75
 ```
 
-Set the radius and additional automatic-refill exclusions on the host/server; clients use the host's values. The toggle key is a local preference and can be remapped. Only loaded chests and machines are scanned, so raising the radius does not force distant world sectors to load.
+Set the radius and additional automatic-refill exclusions on the host/server; clients use the host's values. The toggle keys are local preferences and can be remapped. Updating from the old unmodified G refill default migrates it to F6; other custom shortcuts remain intact. Only loaded chests and machines are scanned, so raising the radius does not force distant world sectors to load.
 
 ## Multiplayer
 
-The author tested the 0.2.4 storage grid in co-op successfully. Version 0.3.1 added crafting, building and automatic supplies with per-object controls; version 0.3.2 addresses lag in their availability and hover checks. These newer features have passed isolated native checks and still need broader live co-op validation. All participants need the same mod version. Chest owners validate access, distance and the pedestal, then grant a short exclusive lease before transfers update the normal chest inventory. Vanilla chest operations respect the lease.
+The author tested the 0.2.4 storage grid in co-op successfully. Version 0.3.1 added crafting, building and automatic supplies with per-object controls; version 0.3.2 addresses lag in their availability and hover checks; 0.4.0 adds independent machine collection. These newer features have passed isolated native checks and still need broader live co-op validation. All participants need the same mod version. Chest owners validate access, distance and the pedestal, then grant a short exclusive lease before transfers update the normal chest inventory. Vanilla chest operations respect the lease.
 
 Crafting and building acquire all required chest leases before the native action. Changed resources or a cancelled crafting action abort before payment. Refill operations run on the machine's owner and remove a resource only after the native machine actually accepts it.
 
@@ -143,6 +157,8 @@ Running `build.ps1` without `-NoInstall` also installs the mod locally. `package
 Use `test-isolated.ps1` while the game is open. It creates a separate hidden headless runtime with its own mod, config, logs and temporary saves, runs at idle priority and never installs into the live game. Normal build/install commands require Valheim to be closed. After testing, `package.ps1 -SkipBuild` packages the exact existing DLL and rejects C# sources newer than that build.
 
 **6,241 native checks passed for 0.3.2**, including a stress fixture with 60 chests and 3,000 stacks. Repeated building, workbench and refill hover reads reuse availability data instead of searching the Unity scene or traversing every stored stack on each query. Inventory changes invalidate item totals; availability also refreshes periodically and when the player, station, radius or world changes. Actual actions recheck permissions and plan payments from fresh, leased inventories. The synthetic timing report is in `tests/runtime/isolated-game/report.performance.txt`; these timings measure query work and do not predict FPS in a particular world.
+
+**6,293 native checks passed for 0.4.0**, with **6,322 checks in each rendered UI run at 1440×1080 and 800×900**. Collection diagnostics cover authenticated independent switches, saved output provenance, actual native kiln output spawning, isolation from ordinary ground loot and native auto-stacking, partial/full deposits, cooked/burnt food identity, exclusive chest leases, stack-first destination routing and native chest saves. The 0.3.2 performance stress cases still pass. See `tests/0.4.0-VALIDATION.md` for details; live multiplayer collection testing remains pending.
 
 **6,064 native runtime checks passed at both 1440×1080 and 800×900** for version 0.3.1. Diagnostics cover inventory quantity/identity conservation, stacking, full inventories, equipment, lease expiry, native recipe discovery, asset-bundle loading, storage payment planning, scoped native recipe checks, alternate-ingredient batches, direct consumption, owner-side station acceptance, fuel/queue limits, authenticated object toggles, saved switch states, special-wood protection and UI layout. Tests use isolated temporary inventories and saves, and require Valheim to be closed. The screenshot above is an in-game runtime preview with test inventories.
 

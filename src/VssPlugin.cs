@@ -9,7 +9,7 @@ public sealed class VssPlugin : BaseUnityPlugin
 {
     public const string ModGuid = "georo.vss";
     public const string ModName = "VSS";
-    public const string ModVersion = "0.3.2";
+    public const string ModVersion = "0.4.0";
 
     internal static ManualLogSource Log;
     internal static VssConfig ModConfig;
@@ -34,7 +34,7 @@ public sealed class VssPlugin : BaseUnityPlugin
         VssRuntimeTests.Run();
     }
 
-    private void Update() { VssSettings.Tick(); VssRefillBridge.Tick(); }
+    private void Update() { VssSettings.Tick(); VssRefillBridge.CollectTick(); VssRefillBridge.Tick(); }
 
     private void OnDestroy()
     {

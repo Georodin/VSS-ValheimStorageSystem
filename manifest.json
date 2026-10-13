@@ -1,8 +1,8 @@
 {
   "name": "VSS_ValheimStorageSystem",
-  "version_number": "0.3.2",
+  "version_number": "0.4.0",
   "website_url": "https://github.com/Georodin/VSS-ValheimStorageSystem",
-  "description": "Inspired by Refined Storage for Minecraft. Search nearby chests, craft and build from storage, refill stations, move partial stacks and consume stored food. Optional per-object auto-refill; optimized for large bases. Co-op support.",
+  "description": "Inspired by Refined Storage for Minecraft. Search nearby chests, craft and build from storage, refill machines and collect finished output. Separate optional auto-refill and auto-collect controls, partial stacks, stored food and co-op support.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2351"
   ]

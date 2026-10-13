@@ -19,7 +19,7 @@ public sealed class VssUi : MonoBehaviour
     private GameObject _canvas;
     private RectTransform _panel, _storage, _inventory, _drag, _tooltip, _preferencePanel;
     private TMP_Text _capacity, _status, _weight, _sortText, _orderText, _filterText, _tooltipText;
-    private TMP_Text _autoText, _amountText;
+    private TMP_Text _autoText, _collectText, _amountText;
     private TMP_InputField _search;
     private Image _dragIcon;
     private Image _equippedTemplate;
@@ -96,6 +96,7 @@ public sealed class VssUi : MonoBehaviour
         }
         if (!IsOpen) return;
         if (_autoText != null) _autoText.text = "Auto refill master: " + (_stand != null && _stand.AutoRefill ? "On" : "Off");
+        if (_collectText != null) _collectText.text = "Auto collect master: " + (_stand != null && _stand.AutoCollect ? "On" : "Off");
         FitPanel();
         if (_stand == null || _player == null || _player.IsDead() || _player.IsTeleporting() ||
             (_player.transform.position - _stand.transform.position).sqrMagnitude > 25f ||
@@ -154,11 +155,15 @@ public sealed class VssUi : MonoBehaviour
         var controllerIcon = Rect("Controller icon", _panel, new Vector2(34, 34)); Top(controllerIcon, 98, 37, 34, 34);
         var controllerImage = Background(controllerIcon, Color.white); controllerImage.sprite = VssSprites.StandIcon;
         controllerImage.preserveAspect = true; controllerImage.raycastTarget = false;
-        Label(_panel, "Storage Inventory", 140, 36, 486, 34, 30, Gold);
-        _autoText = Button(_panel, "Auto refill master: Off", 648, 42, 236, 36, () =>
+        Label(_panel, "Storage Inventory", 140, 36, 350, 34, 30, Gold);
+        _autoText = Button(_panel, "Auto refill master: Off", 502, 38, 188, 28, () =>
         {
             if (_stand != null && _player != null) _stand.ToggleAutoRefill(_player);
-        }).GetComponentInChildren<TMP_Text>(); _autoText.fontSize = 18;
+        }).GetComponentInChildren<TMP_Text>(); _autoText.fontSize = 15;
+        _collectText = Button(_panel, "Auto collect master: Off", 702, 38, 188, 28, () =>
+        {
+            if (_stand != null && _player != null) _stand.ToggleAutoCollect(_player);
+        }).GetComponentInChildren<TMP_Text>(); _collectText.fontSize = 15;
         Button(_panel, "×", 902, 38, 52, 52, Close);
         _capacity = Label(_panel, "", 98, 70, 784, 22, 18, Paper);
         _search = Search(_panel, 44, 110, 425, 40);

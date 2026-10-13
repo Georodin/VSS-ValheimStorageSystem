@@ -262,8 +262,14 @@ internal static class VssRuntimeTests
         Check(VssAssets.ControllerIcon.texture.GetPixel(0, 0).a < 0.01f && VssAssets.ChestIcon.texture.GetPixel(0, 0).a < 0.01f,
             "AI icons have transparent backgrounds");
         var auto = (TMP_Text)AccessTools.Field(typeof(VssUi), "_autoText").GetValue(ui);
+        var collect = (TMP_Text)AccessTools.Field(typeof(VssUi), "_collectText").GetValue(ui);
         var amount = (TMP_Text)AccessTools.Field(typeof(VssUi), "_amountText").GetValue(ui);
         Check(auto.text == "Auto refill master: Off" && amount.text == "Amount: Stack", "refill master and transfer selectors have clear initial states");
+        Check(collect.text == "Auto collect master: Off", "collection has a separate Off-by-default master");
+        var refillRect = auto.GetComponentInParent<Button>(true).GetComponent<RectTransform>();
+        var collectRect = collect.GetComponentInParent<Button>(true).GetComponent<RectTransform>();
+        Check(refillRect.anchoredPosition.x + refillRect.rect.width <= collectRect.anchoredPosition.x,
+            "refill and collect master buttons do not overlap");
         foreach (var expectedLabel in new[] { "Half", "One", "Stack" })
         {
             amount.GetComponentInParent<Button>(true).onClick.Invoke();

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — machine output collection
+
+- Add a separate auto-collect master in the storage window and a saved F7 toggle while facing a producing machine. Both start Off, independently of auto-refill.
+- Collect finished food from grills/cooking stations and ovens, plus output from charcoal kilns, smelters, blast furnaces, windmills and spinning wheels.
+- Deposit into existing compatible stacks before using free slots and respect chest resource preferences, range, permissions and exclusive leases.
+- Retain food on cooking stations and remaining machine drops when storage is full or busy; never sweep up unrelated loose items.
+- Preserve native item identity, world/cheat flags and output provenance across save/load. Only the machine owner collects, with fresh checks before deposit.
+- Move the auto-refill default from G to F6 because vanilla uses G for the radial menu. Migrate the old unmodified G default; preserve other custom shortcuts. Both new keys are configurable.
+- Keep automatic cooking inputs disabled and special-wood protection unchanged. Retain the 0.3.2 availability and hover performance fixes.
+
 ## 0.3.2 — performance fix
 
 - Remove scene-wide Unity object searches from ward checks; read Valheim's live ward registry instead.

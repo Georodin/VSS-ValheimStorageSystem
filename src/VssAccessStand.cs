@@ -7,8 +7,10 @@ public sealed class VssAccessStand : MonoBehaviour, Interactable, Hoverable
 {
     internal static readonly HashSet<VssAccessStand> Instances = new();
     internal const string AutoKey = "vss_auto_refill";
+    internal const string CollectKey = "vss_auto_collect";
     private bool _registered;
     internal bool AutoRefill => GetComponent<ZNetView>() is ZNetView view && view.IsValid() && view.GetZDO().GetBool(AutoKey, false);
+    internal bool AutoCollect => GetComponent<ZNetView>() is ZNetView view && view.IsValid() && view.GetZDO().GetBool(CollectKey, false);
     private void Awake()
     {
         var view = GetComponent<ZNetView>();
@@ -27,6 +29,7 @@ public sealed class VssAccessStand : MonoBehaviour, Interactable, Hoverable
         if (_registered) return;
         _registered = true;
         view.Register<long, bool>("VSS_SetAutoRefill", SetAutoRefill);
+        view.Register<long, bool>("VSS_SetAutoCollect", (sender, actor, enabled) => SetMaster(sender, actor, enabled, CollectKey));
     }
     internal void ToggleAutoRefill(Player player)
     {
@@ -34,16 +37,40 @@ public sealed class VssAccessStand : MonoBehaviour, Interactable, Hoverable
         GetComponent<ZNetView>().InvokeRPC("VSS_SetAutoRefill", player.GetPlayerID(), !AutoRefill);
     }
     private void SetAutoRefill(long sender, long actor, bool enabled)
+        => SetMaster(sender, actor, enabled, AutoKey);
+    internal void ToggleAutoCollect(Player player)
+    {
+        if (player == null || !VssSettings.Ready || (player.transform.position - transform.position).sqrMagnitude > 25f) return;
+        GetComponent<ZNetView>().InvokeRPC("VSS_SetAutoCollect", player.GetPlayerID(), !AutoCollect);
+    }
+    private void SetMaster(long sender, long actor, bool enabled, string key)
     {
         var view = GetComponent<ZNetView>();
         var player = Player.GetAllPlayers().FirstOrDefault(p => p != null && p.GetPlayerID() == actor);
         var pv = player != null ? player.GetComponent<ZNetView>() : null;
         if (!view.IsOwner() || !VssSettings.Ready || pv == null || !pv.IsValid() || pv.GetZDO().GetOwner() != sender ||
             player.IsDead() || (player.transform.position - transform.position).sqrMagnitude > 25f || !HasWardAccess(actor, transform.position)) return;
-        view.GetZDO().Set(AutoKey, enabled);
+        view.GetZDO().Set(key, enabled);
         VssGame.ForceSend(ZDOMan.instance, view.GetZDO().m_uid);
     }
     internal static int Searches;
+    internal static VssAccessStand FindAutomatic(Vector3 origin)
+    {
+        VssAccessStand nearest = null;
+        var distance = VssSettings.Radius * VssSettings.Radius;
+        foreach (var stand in Instances)
+        {
+            if (stand == null || !stand.gameObject.activeInHierarchy) continue;
+            var view = stand.GetComponent<ZNetView>(); var piece = stand.GetComponent<Piece>();
+            var d = (stand.transform.position - origin).sqrMagnitude;
+            if (view == null || !view.IsValid() || piece == null || d > distance ||
+                !HasWardAccess(piece.GetCreator(), origin) || !HasWardAccess(piece.GetCreator(), stand.transform.position)) continue;
+            if (d == distance && nearest != null && System.StringComparer.Ordinal.Compare(view.GetZDO().m_uid.ToString(),
+                nearest.GetComponent<ZNetView>().GetZDO().m_uid.ToString()) >= 0) continue;
+            nearest = stand; distance = d;
+        }
+        return nearest;
+    }
     internal static VssAccessStand Find(Vector3 origin, long actor, bool automatic = false)
     {
         Searches++;

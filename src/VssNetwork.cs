@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace VSS;
 
-internal enum VssAccessMode { Grid, Resources, Station, Automatic }
+internal enum VssAccessMode { Grid, Resources, Station, Automatic, AutomaticCollect }
 
 internal sealed class VssContext
 {
@@ -15,6 +15,7 @@ internal sealed class VssContext
     internal long Actor;
     internal ZNetView Target;
     internal VssAccessMode Mode;
+    internal bool Automatic => Mode == VssAccessMode.Automatic || Mode == VssAccessMode.AutomaticCollect;
     internal Vector3 Origin => Target != null ? Target.transform.position : Player != null ? Player.transform.position : Stand.transform.position;
     internal ZDOID StandId => Stand.GetComponent<ZNetView>().GetZDO().m_uid;
     internal ZDOID TargetId => Target != null && Target.IsValid() ? Target.GetZDO().m_uid : ZDOID.None;
@@ -22,11 +23,12 @@ internal sealed class VssContext
     {
         if (!VssSettings.Ready || Stand == null || !Stand.gameObject.activeInHierarchy ||
             Stand.GetComponent<ZNetView>() == null || !Stand.GetComponent<ZNetView>().IsValid()) return false;
-        if (Mode == VssAccessMode.Automatic && (Target == null || !Target.IsValid() ||
-            !VssRefillBridge.AutoEnabled(Stand.GetComponent<ZNetView>().GetZDO(), Target.GetZDO()))) return false;
-        if (Target != null && (!Target.IsValid() || !Target.IsOwner() && (Mode == VssAccessMode.Station || Mode == VssAccessMode.Automatic))) return false;
+        if (Automatic && (Target == null || !Target.IsValid() ||
+            !(Mode == VssAccessMode.AutomaticCollect ? VssRefillBridge.CollectEnabled(Stand.GetComponent<ZNetView>().GetZDO(), Target.GetZDO()) :
+                VssRefillBridge.AutoEnabled(Stand.GetComponent<ZNetView>().GetZDO(), Target.GetZDO())))) return false;
+        if (Target != null && (!Target.IsValid() || !Target.IsOwner() && (Mode == VssAccessMode.Station || Automatic))) return false;
         if ((Origin - Stand.transform.position).sqrMagnitude > VssSettings.Radius * VssSettings.Radius) return false;
-        if (Mode != VssAccessMode.Automatic && (Player == null || Player.IsDead() || Player.IsTeleporting() ||
+        if (!Automatic && (Player == null || Player.IsDead() || Player.IsTeleporting() ||
             Target != null && (Player.transform.position - Origin).sqrMagnitude > 25f)) return false;
         return VssAccessStand.HasWardAccess(Actor, Stand.transform.position) && VssAccessStand.HasWardAccess(Actor, Origin);
     }
@@ -46,10 +48,13 @@ internal sealed class VssContext
         var player = Player.GetAllPlayers().FirstOrDefault(p => p != null && p.GetPlayerID() == actor && !p.IsDead() && !p.IsTeleporting());
         var playerView = player != null ? player.GetComponent<ZNetView>() : null;
         Vector3 origin;
-        if (mode == VssAccessMode.Automatic)
+        if (mode == VssAccessMode.Automatic || mode == VssAccessMode.AutomaticCollect)
         {
-            if (target == null || target.GetOwner() != sender || !VssRefillBridge.AutoEnabled(stand, target) ||
-                stand.GetLong(ZDOVars.s_creator, 0L) != actor || !VssRefillBridge.SupportedPrefab(target.GetPrefab())) return false;
+            var collect = mode == VssAccessMode.AutomaticCollect;
+            if (target == null || target.GetOwner() != sender ||
+                !(collect ? VssRefillBridge.CollectEnabled(stand, target) : VssRefillBridge.AutoEnabled(stand, target)) ||
+                stand.GetLong(ZDOVars.s_creator, 0L) != actor ||
+                !(collect ? VssRefillBridge.CollectSupportedPrefab(target.GetPrefab()) : VssRefillBridge.SupportedPrefab(target.GetPrefab()))) return false;
             origin = target.GetPosition();
         }
         else
